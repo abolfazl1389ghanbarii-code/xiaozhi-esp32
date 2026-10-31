@@ -3,6 +3,7 @@
 #include <esp_err.h>
 #include <esp_log.h>
 #include <esp_rom_sys.h>
+#include <esp_timer.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -132,8 +133,7 @@ int Max9814Pcm5102aCodec::Write(const int16_t* data, int samples) {
         static_cast<int32_t>(std::pow(static_cast<double>(output_volume_) / 100.0, 2) * 65536.0);
     for (int i = 0; i < samples; ++i) {
         const int64_t scaled = static_cast<int64_t>(data[i]) * volume_factor;
-        const int64_t pcm32 = scaled << 16;
-        buffer[i] = static_cast<int32_t>(std::clamp<int64_t>(pcm32, INT32_MIN, INT32_MAX));
+        buffer[i] = static_cast<int32_t>(std::clamp<int64_t>(scaled, INT32_MIN, INT32_MAX));
     }
     size_t bytes_written = 0;
     esp_err_t err = i2s_channel_write(tx_handle_, buffer.data(),
