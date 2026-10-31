@@ -1,12 +1,6 @@
 #include "wifi_board.h"
 #include "codecs/max9814_pcm5102a_codec.h"
-#include "system_reset.h"
-#include "application.h"
-#include "button.h"
 #include "config.h"
-#include "mcp_server.h"
-#include "lamp_controller.h"
-#include "led/single_led.h"
 #include "display/oled_display.h"
 
 #include <esp_log.h>
@@ -18,10 +12,6 @@
 
 class CompactWifiBoard : public WifiBoard {
 private:
-    Button boot_button_;
-    Button touch_button_;
-    Button asr_button_;
-
     i2c_master_bus_handle_t display_i2c_bus_;
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
     esp_lcd_panel_handle_t panel_ = nullptr;
@@ -44,7 +34,6 @@ private:
     }
 
     void InitializeSsd1306Display() {
-        // SSD1306 config
         esp_lcd_panel_io_i2c_config_t io_config = {
             .dev_addr = 0x3C,
             .scl_speed_hz = 400 * 1000,
@@ -75,7 +64,6 @@ private:
         ESP_ERROR_CHECK(esp_lcd_new_panel_ssd1306(panel_io_, &panel_config, &panel_));
         ESP_LOGI(TAG, "SSD1306 driver installed");
 
-        // Reset the display
         ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_));
         if (esp_lcd_panel_init(panel_) != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize display");
@@ -83,75 +71,32 @@ private:
             return;
         }
 
-        // Set the display to on
         ESP_LOGI(TAG, "Turning display on");
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
 
-        display_ = new OledDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
-    }
-
-    void InitializeButtons() {
-        
-        // 配置 GPIO
-        gpio_config_t io_conf = {
-            .pin_bit_mask = 1ULL << BUILTIN_LED_GPIO,  // 设置需要配置的 GPIO 引脚
-            .mode = GPIO_MODE_OUTPUT,           // 设置为输出模式
-            .pull_up_en = GPIO_PULLUP_DISABLE,  // 禁用上拉
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,  // 禁用下拉
-            .intr_type = GPIO_INTR_DISABLE      // 禁用中断
-        };
-        gpio_config(&io_conf);  // 应用配置
-
-        boot_button_.OnClick([this]() {
-            auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting) {
-                EnterWifiConfigMode();
-                return;
-            }
-            gpio_set_level(BUILTIN_LED_GPIO, 1);
-            app.ToggleChatState();
-        });
-
-        asr_button_.OnClick([this]() {
-            std::string wake_word="你好小智";
-            Application::GetInstance().WakeWordInvoke(wake_word);
-        });
-
-        touch_button_.OnPressDown([this]() {
-            gpio_set_level(BUILTIN_LED_GPIO, 1);
-            Application::GetInstance().StartListening();
-        });
-        touch_button_.OnPressUp([this]() {
-            gpio_set_level(BUILTIN_LED_GPIO, 0);
-            Application::GetInstance().StopListening();
-        });
-    }
-
-    // 物联网初始化，添加对 AI 可见设备
-    void InitializeTools() {
-        static LampController lamp(LAMP_GPIO);
+        display_ = new OledDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                   DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
     }
 
 public:
-    CompactWifiBoard() : WifiBoard(), boot_button_(BOOT_BUTTON_GPIO), touch_button_(TOUCH_BUTTON_GPIO), asr_button_(ASR_BUTTON_GPIO)
-    {
+    CompactWifiBoard() : WifiBoard() {
         InitializeDisplayI2c();
         InitializeSsd1306Display();
-        InitializeButtons();
-        InitializeTools();
+        // No physical interaction controls are initialized on this board.
+        // Conversation activation is handled exclusively by the audio wake-word pipeline.
     }
 
-    virtual AudioCodec* GetAudioCodec() override 
-    {
-static Max9814Pcm5102aCodec audio_codec(AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_ADC_MIC_GPIO, AUDIO_I2S_SPK_GPIO_BCLK, AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT);
+    virtual AudioCodec* GetAudioCodec() override {
+        static Max9814Pcm5102aCodec audio_codec(
+            AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
+            AUDIO_ADC_MIC_GPIO, AUDIO_I2S_SPK_GPIO_BCLK,
+            AUDIO_I2S_SPK_GPIO_LRCK, AUDIO_I2S_SPK_GPIO_DOUT);
         return &audio_codec;
     }
 
     virtual Display* GetDisplay() override {
         return display_;
     }
-
 };
 
 DECLARE_BOARD(CompactWifiBoard);
