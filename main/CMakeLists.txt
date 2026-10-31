@@ -11,6 +11,7 @@ set(SOURCES "audio/audio_codec.cc"
             "audio/codecs/es8388_audio_codec.cc"
             "audio/codecs/es8389_audio_codec.cc"
             "audio/codecs/dummy_audio_codec.cc"
+            "audio/codecs/max9814_pcm5102a_codec.cc"
             "led/single_led.cc"
             "led/circular_strip.cc"
             "led/gpio_led.cc"
@@ -1202,6 +1203,7 @@ idf_component_register(SRCS ${SOURCES}
                         esp_netif
                         esp_eth
                         esp_driver_gpio
+                        esp_driver_adc
                         esp_driver_uart
                         esp_driver_spi
                         esp_driver_i2c
