@@ -2,17 +2,30 @@
 #define _MAX9814_PCM5102A_CODEC_H
 
 #include "audio_codec.h"
+
 #include <driver/gpio.h>
-#include <esp_adc/adc_oneshot.h>
+#include <esp_adc/adc_continuous.h>
+#include <array>
 #include <mutex>
 
 class Max9814Pcm5102aCodec : public AudioCodec {
 private:
-    adc_oneshot_unit_handle_t adc_handle_ = nullptr;
-    static constexpr adc_channel_t adc_channel_ = ADC_CHANNEL_6; // GPIO34 = ADC1_CH6 on ESP32
+    adc_continuous_handle_t adc_handle_ = nullptr;
+    static constexpr adc_channel_t adc_channel_ = ADC_CHANNEL_6; // GPIO34 / ADC1_CH6
     gpio_num_t adc_gpio_;
     std::mutex io_mutex_;
     float dc_offset_ = 2048.0f;
+    int16_t decimation_sample_ = 0;
+    bool decimation_phase_ = false;
+
+    static constexpr uint32_t kAdcRateHz = 32000;
+    static constexpr size_t kAdcRawBufferBytes = 256;
+    static constexpr size_t kAdcMaxResults =
+        kAdcRawBufferBytes / SOC_ADC_DIGI_RESULT_BYTES;
+    std::array<uint8_t, kAdcRawBufferBytes> adc_raw_buffer_{};
+    std::array<adc_continuous_data_t, kAdcMaxResults> adc_parsed_{};
+    std::array<int32_t, AUDIO_CODEC_DMA_FRAME_NUM * 2> output_buffer_{};
+
     int Read(int16_t* dest, int samples) override;
     int Write(const int16_t* data, int samples) override;
     void EnableInput(bool enable) override;
