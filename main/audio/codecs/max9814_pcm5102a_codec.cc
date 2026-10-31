@@ -15,6 +15,7 @@ Max9814Pcm5102aCodec::Max9814Pcm5102aCodec(
     int input_sample_rate, int output_sample_rate, gpio_num_t adc_gpio,
     gpio_num_t spk_bclk, gpio_num_t spk_ws, gpio_num_t spk_dout)
     : adc_gpio_(adc_gpio) {
+    configASSERT(adc_gpio_ == GPIO_NUM_34);
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
     input_channels_ = 1;
