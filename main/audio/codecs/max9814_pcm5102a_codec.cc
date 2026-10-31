@@ -23,7 +23,7 @@ Max9814Pcm5102aCodec::Max9814Pcm5102aCodec(
     duplex_ = false;
     input_reference_ = false;
 
-    // MAX9814 is an analog microphone: use ADC1 so Wi-Fi does not reserve the ADC.
+    // CI validation branch: build the MAX9814 + PCM5102A codec with ESP-IDF 6.1.\n    // MAX9814 is an analog microphone: use ADC1 so Wi-Fi does not reserve the ADC.
     adc_oneshot_unit_init_cfg_t adc_init = {
         .unit_id = ADC_UNIT_1,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
