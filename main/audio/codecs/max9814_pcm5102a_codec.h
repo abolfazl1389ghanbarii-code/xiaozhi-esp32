@@ -9,7 +9,7 @@
 class Max9814Pcm5102aCodec : public AudioCodec {
 private:
     adc_oneshot_unit_handle_t adc_handle_ = nullptr;
-    adc_channel_t adc_channel_ = ADC_CHANNEL_6; // GPIO34 = ADC1_CH6 on classic ESP32
+    static constexpr adc_channel_t adc_channel_ = ADC_CHANNEL_6; // GPIO34 = ADC1_CH6 on ESP32
     gpio_num_t adc_gpio_;
     std::mutex io_mutex_;
     float dc_offset_ = 2048.0f;
