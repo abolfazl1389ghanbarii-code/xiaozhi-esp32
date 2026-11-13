@@ -25,6 +25,7 @@ Max9814Pcm5102aCodec::Max9814Pcm5102aCodec(
     input_reference_ = false;
 
     // GPIO34 is ADC1_CH6. Continuous ADC uses DMA and does not occupy I2S0.
+    // Diagnostic build: periodically report captured PCM level and DMA timeouts.
     const adc_continuous_handle_cfg_t adc_handle_cfg = {
         .max_store_buf_size = 2048,
         .conv_frame_size = kAdcRawBufferBytes,
