@@ -17,6 +17,7 @@ private:
     float dc_offset_ = 2048.0f;
     int16_t decimation_sample_ = 0;
     bool decimation_phase_ = false;
+    int64_t last_diag_time_us_ = 0;
 
     static constexpr uint32_t kAdcRateHz = 32000;
     static constexpr size_t kAdcRawBufferBytes = 256;
