@@ -3,6 +3,7 @@
 #include <esp_check.h>
 #include <esp_err.h>
 #include <esp_log.h>
+#include <esp_timer.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -121,6 +122,7 @@ int Max9814Pcm5102aCodec::Read(int16_t* dest, int samples) {
     }
 
     int produced = 0;
+    const int64_t read_started_us = esp_timer_get_time();
     while (produced < samples) {
         uint32_t bytes_read = 0;
         const esp_err_t read_err = adc_continuous_read(
@@ -128,6 +130,10 @@ int Max9814Pcm5102aCodec::Read(int16_t* dest, int samples) {
             &bytes_read, 100);
 
         if (read_err == ESP_ERR_TIMEOUT) {
+            if (esp_timer_get_time() - read_started_us >= 1000000) {
+                ESP_LOGW(TAG, "ADC DMA timeout: no samples received within 1 second");
+                return produced;
+            }
             continue;
         }
         if (read_err != ESP_OK) {
@@ -168,6 +174,28 @@ int Max9814Pcm5102aCodec::Read(int16_t* dest, int samples) {
                 dest[produced++] = static_cast<int16_t>(filtered);
                 decimation_phase_ = false;
             }
+        }
+    }
+
+    if (produced > 0) {
+        int32_t min_sample = 32767;
+        int32_t max_sample = -32768;
+        uint32_t peak = 0;
+        double sum_squares = 0.0;
+        for (int i = 0; i < produced; ++i) {
+            const int32_t value = dest[i];
+            min_sample = std::min(min_sample, value);
+            max_sample = std::max(max_sample, value);
+            peak = std::max(peak, static_cast<uint32_t>(std::abs(value)));
+            sum_squares += static_cast<double>(value) * value;
+        }
+        const int64_t now_us = esp_timer_get_time();
+        if (last_diag_time_us_ == 0 || now_us - last_diag_time_us_ >= 2000000) {
+            const double rms = std::sqrt(sum_squares / produced);
+            ESP_LOGI(TAG, "MIC PCM: samples=%d min=%ld max=%ld peak=%lu rms=%.1f gain=%.2f",
+                     produced, static_cast<long>(min_sample), static_cast<long>(max_sample),
+                     static_cast<unsigned long>(peak), rms, input_gain_);
+            last_diag_time_us_ = now_us;
         }
     }
     return produced;
