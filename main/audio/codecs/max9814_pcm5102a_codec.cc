@@ -243,6 +243,7 @@ int Max9814Pcm5102aCodec::Write(const int16_t* data, int samples) {
 
 void Max9814Pcm5102aCodec::EnableInput(bool enable) {
     AudioCodec::EnableInput(enable);
+    ESP_LOGI(TAG, "Microphone input %s", enable ? "enabled" : "disabled");
 }
 
 void Max9814Pcm5102aCodec::EnableOutput(bool enable) {
