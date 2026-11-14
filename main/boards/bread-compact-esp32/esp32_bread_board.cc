@@ -1,4 +1,6 @@
 #include "wifi_board.h"
+#include "application.h"
+#include "button.h"
 #include "codecs/max9814_pcm5102a_codec.h"
 #include "config.h"
 #include "display/oled_display.h"
@@ -6,12 +8,18 @@
 class CompactWifiBoard : public WifiBoard {
 private:
     Display* display_ = nullptr;
+    Button boot_button_{GPIO_NUM_0};
 
 public:
     CompactWifiBoard() : WifiBoard() {
-        // Diagnostic build: skip OLED/I2C and BOOT-button initialization.
-        // This isolates startup from optional display and button hardware.
+        // Keep the OLED/I2C hardware bypassed while diagnosing audio capture.
         display_ = new NoDisplay();
+
+        // The original ESP32 has no supported on-device wake word in this
+        // no-PSRAM build. Use the BOOT button (GPIO0) to start/stop chat.
+        boot_button_.OnClick([]() {
+            Application::GetInstance().ToggleChatState();
+        });
     }
 
     virtual AudioCodec* GetAudioCodec() override {
