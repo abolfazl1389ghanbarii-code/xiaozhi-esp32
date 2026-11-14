@@ -1,4 +1,6 @@
 #include "wifi_board.h"
+#include "application.h"
+#include "button.h"
 #include "codecs/max9814_pcm5102a_codec.h"
 #include "config.h"
 #include "display/oled_display.h"
@@ -16,6 +18,7 @@ private:
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
     esp_lcd_panel_handle_t panel_ = nullptr;
     Display* display_ = nullptr;
+    Button boot_button_;
 
     void InitializeDisplayI2c() {
         i2c_master_bus_config_t bus_config = {
@@ -78,12 +81,18 @@ private:
                                    DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
     }
 
+    void InitializeButtons() {
+        boot_button_.OnClick([]() {
+            ESP_LOGI(TAG, "BOOT button clicked: toggling conversation");
+            Application::GetInstance().ToggleChatState();
+        });
+    }
+
 public:
-    CompactWifiBoard() : WifiBoard() {
+    CompactWifiBoard() : WifiBoard(), boot_button_(GPIO_NUM_0) {
         InitializeDisplayI2c();
         InitializeSsd1306Display();
-        // No physical interaction controls are initialized on this board.
-        // Conversation activation is handled exclusively by the audio wake-word pipeline.
+        InitializeButtons();
     }
 
     virtual AudioCodec* GetAudioCodec() override {
