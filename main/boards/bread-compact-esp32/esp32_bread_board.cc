@@ -38,8 +38,15 @@ private:
             return;
         }
 
-        esp_lcd_panel_io_i2c_config_t io_config = ESP_LCD_PANEL_IO_I2C_CONFIG(0x3C);
+        // ESP-IDF 6.1 no longer provides the legacy I2C config macro.
+        // SSD1306 uses one control byte; bit 6 selects command/data.
+        esp_lcd_panel_io_i2c_config_t io_config = {};
+        io_config.dev_addr = 0x3C;
         io_config.scl_speed_hz = 400000;
+        io_config.control_phase_bytes = 1;
+        io_config.dc_bit_offset = 6;
+        io_config.lcd_cmd_bits = 8;
+        io_config.lcd_param_bits = 8;
         err = esp_lcd_new_panel_io_i2c(i2c_bus_, &io_config, &panel_io_);
         if (err != ESP_OK) {
             ESP_LOGW(TAG, "OLED I2C panel IO initialization failed: %s", esp_err_to_name(err));
