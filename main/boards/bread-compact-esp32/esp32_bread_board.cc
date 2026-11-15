@@ -41,7 +41,7 @@ private:
         const s=document.getElementById('s'),v=document.getElementById('v'),m=document.getElementById('mute');let t=null,last=70;
         function show(n){s.value=n;v.textContent=n;m.textContent=Number(n)===0?'فعال‌کردن صدا':'قطع صدا'}
         async function send(n){n=Math.max(0,Math.min(100,Number(n)||0));show(n);try{await fetch('/api/volume?value='+n,{method:'POST',cache:'no-store'})}catch(e){v.textContent='خطا'}}
-        s.addEventListener('input',()=>{show(s.value);clearTimeout(t);t=setTimeout(()=>send(s.value),120)});
+        s.addEventListener('input',()=>show(s.value));s.addEventListener('change',()=>send(s.value));
         document.getElementById('down').onclick=()=>send(Number(s.value)-5);document.getElementById('up').onclick=()=>send(Number(s.value)+5);
         m.onclick=()=>{if(Number(s.value)>0){last=Number(s.value);send(0)}else send(last||50)};
         fetch('/api/volume').then(r=>r.json()).then(d=>{show(d.volume);if(d.volume>0)last=d.volume}).catch(()=>show(70));
