@@ -29,7 +29,7 @@ bool AudioCodec::InputData(std::vector<int16_t>& data) {
 
 void AudioCodec::Start() {
     Settings settings("audio", false);
-    output_volume_ = std::clamp(settings.GetInt("output_volume", output_volume_), 0, 100);
+    output_volume_ = std::clamp(settings.GetInt("output_volume", output_volume_), int32_t{0}, int32_t{100});
 
     ESP_LOGI(TAG, "Audio codec started");
 }
