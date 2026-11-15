@@ -59,7 +59,7 @@ private:
         }
         if (req->method == HTTP_GET) {
             char response[40];
-            snprintf(response, sizeof(response), "{\\"volume\\":%d}", codec->output_volume());
+            snprintf(response, sizeof(response), "{\"volume\":%d}", codec->output_volume());
             httpd_resp_set_type(req, "application/json");
             httpd_resp_set_hdr(req, "Cache-Control", "no-store");
             return httpd_resp_send(req, response, HTTPD_RESP_USE_STRLEN);
@@ -80,7 +80,7 @@ private:
         codec->SetOutputVolume(static_cast<int>(volume));
         httpd_resp_set_type(req, "application/json");
         char response[40];
-        snprintf(response, sizeof(response), "{\\"volume\\":%ld}", volume);
+        snprintf(response, sizeof(response), "{\"volume\":%ld}", volume);
         return httpd_resp_send(req, response, HTTPD_RESP_USE_STRLEN);
     }
 
