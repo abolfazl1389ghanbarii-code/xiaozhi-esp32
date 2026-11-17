@@ -87,6 +87,7 @@ private:
         return httpd_resp_send(req, response, HTTPD_RESP_USE_STRLEN);
     }
 
+    // AP+STA keeps internet connectivity while the phone uses the local volume page.
     void StartVolumeAccessPoint() {
         // Keep a dedicated phone-control AP active alongside the router connection.
         // The Wi-Fi manager has already initialized the driver and started the STA.
