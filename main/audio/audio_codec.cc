@@ -4,6 +4,7 @@
 
 #include <esp_log.h>
 #include <cstring>
+#include <algorithm>
 #include <driver/i2s_common.h>
 
 #define TAG "AudioCodec"
@@ -28,17 +29,13 @@ bool AudioCodec::InputData(std::vector<int16_t>& data) {
 
 void AudioCodec::Start() {
     Settings settings("audio", false);
-    output_volume_ = settings.GetInt("output_volume", output_volume_);
-    if (output_volume_ <= 0) {
-        ESP_LOGW(TAG, "Output volume value (%d) is too small, setting to default (10)", output_volume_);
-        output_volume_ = 10;
-    }
+    output_volume_ = std::clamp(settings.GetInt("output_volume", output_volume_), int32_t{0}, int32_t{100});
 
     ESP_LOGI(TAG, "Audio codec started");
 }
 
 void AudioCodec::SetOutputVolume(int volume) {
-    output_volume_ = volume;
+    output_volume_ = std::clamp(volume, 0, 100);
     ESP_LOGI(TAG, "Set output volume to %d", output_volume_);
     
     Settings settings("audio", true);
