@@ -181,7 +181,10 @@ private:
 
 public:
     CompactWifiBoard() : WifiBoard() {
-        InitializeOledDisplay();
+        // Diagnostic stage 0: keep the known-good XiaoZhi/audio startup path intact.
+        // OLED initialization is deliberately disabled to isolate whether the display
+        // stack is preventing the application from booting.
+        display_ = new NoDisplay();
 
         // The original ESP32 has no supported on-device wake word in this
         // no-PSRAM build. Use the BOOT button (GPIO0) to start/stop chat.
