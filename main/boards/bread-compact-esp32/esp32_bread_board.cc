@@ -12,8 +12,6 @@
 #include <esp_log.h>
 #include <esp_http_server.h>
 #include <esp_netif.h>
-#include <esp_wifi.h>
-#include <cstring>
 #include <lwip/inet.h>
 #include <cstdlib>
 
@@ -28,7 +26,6 @@ private:
     esp_lcd_panel_handle_t panel_ = nullptr;
 
     httpd_handle_t volume_http_server_ = nullptr;
-    esp_netif_t* volume_ap_netif_ = nullptr;
 
     static esp_err_t VolumePageHandler(httpd_req_t* req) {
         static const char page[] = R"PAGE(<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#142033"><title>کنترل صدای XiaoZhi</title><style>
@@ -39,7 +36,7 @@ private:
         button{flex:1;border:0;border-radius:14px;padding:16px;background:#304760;color:white;font-size:17px;font-weight:bold}.mute{background:#a33c50}.hint{text-align:center;color:#adbdcf;font-size:12px;margin-top:24px}
         </style></head><body><main><small>XIAOZHI · DIGITAL AUDIO</small><h1>کنترل صدای دستگاه</h1><div class="value" id="v">--</div><div class="unit">درصد صدا</div>
         <input id="s" type="range" min="0" max="100" value="70"><div class="buttons"><button id="down">− کاهش</button><button id="up">افزایش +</button></div>
-        <div class="buttons"><button class="mute" id="mute">قطع صدا</button></div><div class="hint">به Wi-Fi با نام XiaoZhi-Control وصل شو و این نشانی را باز کن: 192.168.4.1</div></main>
+        <div class="buttons"><button class="mute" id="mute">قطع صدا</button></div><div class="hint">گوشی و XiaoZhi باید به یک Wi-Fi متصل باشند.</div></main>
         <script>
         const s=document.getElementById('s'),v=document.getElementById('v'),m=document.getElementById('mute');let t=null,last=70;
         function show(n){s.value=n;v.textContent=n;m.textContent=Number(n)===0?'فعال‌کردن صدا':'قطع صدا'}
@@ -87,57 +84,6 @@ private:
         return httpd_resp_send(req, response, HTTPD_RESP_USE_STRLEN);
     }
 
-    // AP+STA keeps internet connectivity while the phone uses the local volume page.
-    void StartVolumeAccessPoint() {
-        // Keep a dedicated phone-control AP active alongside the router connection.
-        // The Wi-Fi manager has already initialized the driver and started the STA.
-        if (volume_ap_netif_ == nullptr) {
-            volume_ap_netif_ = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-            if (volume_ap_netif_ == nullptr) {
-                volume_ap_netif_ = esp_netif_create_default_wifi_ap();
-            }
-            if (volume_ap_netif_ == nullptr) {
-                ESP_LOGE(TAG, "Could not create volume-control AP network interface");
-                return;
-            }
-        }
-
-        wifi_mode_t mode = WIFI_MODE_NULL;
-        if (esp_wifi_get_mode(&mode) != ESP_OK) {
-            ESP_LOGE(TAG, "Could not read Wi-Fi mode before starting volume AP");
-            return;
-        }
-        if (mode != WIFI_MODE_APSTA && esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK) {
-            ESP_LOGE(TAG, "Could not enable AP+STA mode for volume control");
-            return;
-        }
-
-        wifi_config_t ap_config = {};
-        const char* ssid = "XiaoZhi-Control";
-        const char* password = "XiaoZhi1234";
-        memcpy(ap_config.ap.ssid, ssid, strlen(ssid));
-        ap_config.ap.ssid_len = strlen(ssid);
-        memcpy(ap_config.ap.password, password, strlen(password));
-        ap_config.ap.channel = 1;
-        ap_config.ap.max_connection = 2;
-        ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-        ap_config.ap.pmf_cfg.capable = true;
-        ap_config.ap.pmf_cfg.required = false;
-
-        if (esp_wifi_set_config(WIFI_IF_AP, &ap_config) != ESP_OK) {
-            ESP_LOGE(TAG, "Could not configure XiaoZhi-Control access point");
-            return;
-        }
-
-        esp_netif_ip_info_t ap_ip = {};
-        if (esp_netif_get_ip_info(volume_ap_netif_, &ap_ip) == ESP_OK) {
-            ESP_LOGI(TAG, "Volume-control Wi-Fi ready: XiaoZhi-Control at http://" IPSTR,
-                     IP2STR(&ap_ip.ip));
-        } else {
-            ESP_LOGI(TAG, "Volume-control Wi-Fi ready: XiaoZhi-Control");
-        }
-    }
-
     void StartVolumeWebServer() {
         if (volume_http_server_ != nullptr) return;
         httpd_config_t config = HTTPD_DEFAULT_CONFIG();
@@ -155,8 +101,14 @@ private:
         httpd_register_uri_handler(volume_http_server_, &get_volume);
         httpd_register_uri_handler(volume_http_server_, &set_volume);
         ESP_LOGI(TAG, "Phone volume-control server started on port 80");
-        ESP_LOGI(TAG, "Open http://192.168.4.1 after connecting phone to XiaoZhi-Control");
-        if (display_ != nullptr) display_->ShowNotification("http://192.168.4.1", 15000);
+        esp_netif_t* netif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        esp_netif_ip_info_t ip_info = {};
+        if (netif != nullptr && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
+            char url[48];
+            snprintf(url, sizeof(url), "http://" IPSTR, IP2STR(&ip_info.ip));
+            ESP_LOGI(TAG, "Open %s on a phone connected to the same Wi-Fi", url);
+            if (display_ != nullptr) display_->ShowNotification(url, 15000);
+        }
     }
 
     void InitializeOledDisplay() {
@@ -245,10 +197,7 @@ public:
     virtual void SetNetworkEventCallback(NetworkEventCallback callback) override {
         WifiBoard::SetNetworkEventCallback([this, callback = std::move(callback)](NetworkEvent event, const std::string& data) {
             if (callback) callback(event, data);
-            if (event == NetworkEvent::Connected) {
-                StartVolumeAccessPoint();
-                StartVolumeWebServer();
-            }
+            if (event == NetworkEvent::Connected) StartVolumeWebServer();
         });
     }
 
