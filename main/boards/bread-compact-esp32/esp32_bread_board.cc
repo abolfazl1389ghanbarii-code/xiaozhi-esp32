@@ -14,6 +14,7 @@
 #include <esp_netif.h>
 #include <lwip/inet.h>
 #include <cstdlib>
+#include <cstdio>
 
 #define TAG "CompactWifiBoard"
 
@@ -106,7 +107,10 @@ private:
         if (netif != nullptr && esp_netif_get_ip_info(netif, &ip_info) == ESP_OK) {
             char url[48];
             snprintf(url, sizeof(url), "http://" IPSTR, IP2STR(&ip_info.ip));
-            ESP_LOGI(TAG, "Open %s on a phone connected to the same Wi-Fi", url);
+            ESP_LOGI(TAG, "===== XIAOZHI VOLUME CONTROL IP: %s =====", url);
+            printf("\\n===== XIAOZHI VOLUME CONTROL IP: %s =====\\n", url);
+            printf("Connect your phone to the SAME router Wi-Fi and open: %s\\n\\n", url);
+            fflush(stdout);
             if (display_ != nullptr) display_->ShowNotification(url, 15000);
         }
     }
@@ -197,7 +201,10 @@ public:
     virtual void SetNetworkEventCallback(NetworkEventCallback callback) override {
         WifiBoard::SetNetworkEventCallback([this, callback = std::move(callback)](NetworkEvent event, const std::string& data) {
             if (callback) callback(event, data);
-            if (event == NetworkEvent::Connected) StartVolumeWebServer();
+            if (event == NetworkEvent::Connected) {
+                ESP_LOGI(TAG, "Wi-Fi connected; starting volume web server and printing its IP to serial.");
+                StartVolumeWebServer();
+            }
         });
     }
 
