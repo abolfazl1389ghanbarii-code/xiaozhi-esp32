@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <initializer_list>
 
 #include <esp_err.h>
 #include <esp_log.h>
@@ -95,14 +96,14 @@ void OledDisplay::SetupUI() {
     }
 
     Display::SetupUI();  // Mark SetupUI as called
-    if (height_ == 64) {
-        SetupUI_128x64();
-    } else {
-        SetupUI_128x32();
-    }
+    SetupFaceUI();
 }
 
 OledDisplay::~OledDisplay() {
+    if (blink_timer_ != nullptr) {
+        lv_timer_delete(blink_timer_);
+        blink_timer_ = nullptr;
+    }
     if (content_ != nullptr) {
         lv_obj_del(content_);
     }
@@ -410,28 +411,102 @@ void OledDisplay::SetupUI_128x32() {
                                    LV_PART_MAIN);
 }
 
-bool OledDisplay::SetEmotion(const char* emotion) {
-    auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
-    const char* utf8 = noto_emoji_get_utf8(emotion);
-    const lv_font_t* emotion_font = lvgl_theme->emoji_font()->font();
-    if (utf8 == nullptr) {
-        utf8 = material_symbols_get_utf8(emotion);
-        emotion_font = lvgl_theme->large_icon_font()->font();
-    }
+void OledDisplay::SetupFaceUI() {
     DisplayLockGuard lock(this);
-    if (emotion_label_ == nullptr) {
-        return false;
+
+    auto screen = lv_screen_active();
+    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(screen, 0, 0);
+    lv_obj_set_style_pad_all(screen, 0, 0);
+    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
+
+    // Two large, clean eyes occupy the entire OLED. No text or status icons.
+    const int eye_width = (height_ == 32) ? 20 : 27;
+    eye_open_height_ = (height_ == 32) ? 19 : 29;
+    const int eye_y = (height_ == 32) ? 6 : 17;
+    const int eye_gap = (height_ == 32) ? 24 : 20;
+    const int eye_x = (width_ - (eye_width * 2 + eye_gap)) / 2;
+
+    eye_left_ = lv_obj_create(screen);
+    eye_right_ = lv_obj_create(screen);
+    for (lv_obj_t* eye : {eye_left_, eye_right_}) {
+        lv_obj_set_size(eye, eye_width, eye_open_height_);
+        lv_obj_set_style_bg_color(eye, lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(eye, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(eye, 0, 0);
+        lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_pad_all(eye, 0, 0);
+        lv_obj_clear_flag(eye, LV_OBJ_FLAG_SCROLLABLE);
     }
-    if (utf8 != nullptr) {
-        lv_obj_set_style_text_font(emotion_label_, emotion_font, 0);
-        lv_label_set_text(emotion_label_, utf8);
-        return true;
+    lv_obj_set_pos(eye_left_, eye_x, eye_y);
+    lv_obj_set_pos(eye_right_, eye_x + eye_width + eye_gap, eye_y);
+
+    blink_counter_ = 0;
+    blink_timer_ = lv_timer_create(BlinkTimerCallback, 100, this);
+}
+
+void OledDisplay::ApplyEyeEmotion(const char* emotion) {
+    if (eye_left_ == nullptr || eye_right_ == nullptr) {
+        return;
     }
-    // Neither font has a glyph for this name, so what is shown is the neutral placeholder and
-    // not the emotion that was asked for.
-    lv_obj_set_style_text_font(emotion_label_, lvgl_theme->emoji_font()->font(), 0);
-    lv_label_set_text(emotion_label_, NOTO_EMOJI_NEUTRAL);
-    return false;
+
+    int width = (height_ == 32) ? 20 : 27;
+    int open_height = (height_ == 32) ? 19 : 29;
+    int y = (height_ == 32) ? 6 : 17;
+    int gap = (height_ == 32) ? 24 : 20;
+    const std::string mood = (emotion == nullptr) ? "" : emotion;
+
+    if (mood == "happy" || mood == "laugh" || mood == "love" || mood == "loving") {
+        open_height = (height_ == 32) ? 12 : 19;
+        y += (height_ == 32) ? 4 : 5;
+    } else if (mood == "sad" || mood == "cry" || mood == "crying") {
+        open_height = (height_ == 32) ? 14 : 21;
+        y += (height_ == 32) ? 2 : 3;
+    } else if (mood == "angry" || mood == "serious") {
+        open_height = (height_ == 32) ? 12 : 18;
+        width += (height_ == 32) ? 1 : 2;
+        y += (height_ == 32) ? 3 : 5;
+    } else if (mood == "surprised" || mood == "surprise" || mood == "astonished") {
+        open_height = (height_ == 32) ? 21 : 34;
+        width += (height_ == 32) ? 1 : 3;
+        y = (height_ == 32) ? 5 : 14;
+    } else if (mood == "sleepy" || mood == "sleep" || mood == "tired") {
+        open_height = (height_ == 32) ? 7 : 11;
+        y += (height_ == 32) ? 6 : 9;
+    }
+
+    eye_open_height_ = open_height;
+    const int x = (width_ - (width * 2 + gap)) / 2;
+    for (lv_obj_t* eye : {eye_left_, eye_right_}) {
+        lv_obj_set_size(eye, width, open_height);
+        lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
+    }
+    lv_obj_set_pos(eye_left_, x, y);
+    lv_obj_set_pos(eye_right_, x + width + gap, y);
+}
+
+void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
+    auto* self = static_cast<OledDisplay*>(lv_timer_get_user_data(timer));
+    if (self == nullptr || self->eye_left_ == nullptr || self->eye_right_ == nullptr) {
+        return;
+    }
+
+    ++self->blink_counter_;
+    if (self->blink_counter_ == 45) {
+        lv_obj_set_height(self->eye_left_, 2);
+        lv_obj_set_height(self->eye_right_, 2);
+    } else if (self->blink_counter_ >= 47) {
+        lv_obj_set_height(self->eye_left_, self->eye_open_height_);
+        lv_obj_set_height(self->eye_right_, self->eye_open_height_);
+        self->blink_counter_ = 0;
+    }
+}
+
+bool OledDisplay::SetEmotion(const char* emotion) {
+    DisplayLockGuard lock(this);
+    ApplyEyeEmotion(emotion);
+    return true;
 }
 
 void OledDisplay::SetTheme(Theme* theme) {
