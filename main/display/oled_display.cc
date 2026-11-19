@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <string>
+#include <initializer_list>
 
 #include <esp_err.h>
 #include <esp_log.h>
@@ -99,6 +100,10 @@ void OledDisplay::SetupUI() {
 }
 
 OledDisplay::~OledDisplay() {
+    if (blink_timer_ != nullptr) {
+        lv_timer_delete(blink_timer_);
+        blink_timer_ = nullptr;
+    }
     if (content_ != nullptr) {
         lv_obj_del(content_);
     }
