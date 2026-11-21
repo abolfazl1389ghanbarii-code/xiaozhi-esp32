@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <string>
 #include <initializer_list>
+#include <cctype>
+#include <cstring>
 
 #include <esp_err.h>
 #include <esp_log.h>
@@ -495,7 +497,7 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
 
     const std::string mood = (emotion == nullptr) ? "neutral" : emotion;
     const bool happy = mood == "happy" || mood == "laugh" || mood == "love" ||
-                       mood == "loving" || mood == "happiness";
+                       mood == "loving" || mood == "happiness" || mood == "joy";
     heart_mode_ = happy;
 
     const int base_width = (height_ == 32) ? 20 : 27;
@@ -507,10 +509,10 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
     int eye_y = base_y;
 
     const bool sad = mood == "sad" || mood == "cry" || mood == "crying" ||
-                     mood == "sadness";
+                     mood == "sadness" || mood == "sorrow";
     const bool surprised = mood == "surprised" || mood == "surprise" ||
-                           mood == "astonished";
-    const bool angry = mood == "angry" || mood == "serious";
+                           mood == "astonished" || mood == "fear" || mood == "scared";
+    const bool angry = mood == "angry" || mood == "serious" || mood == "disgust";
     const bool sleepy = mood == "sleepy" || mood == "sleep" || mood == "tired";
 
     if (sad) {
@@ -527,6 +529,10 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
     } else if (sleepy) {
         eye_height = (height_ == 32) ? 7 : 11;
         eye_y += (height_ == 32) ? 6 : 9;
+    } else if (speaking_ && !happy) {
+        // Keep the normal round eyes at rest; make them visibly oval while TTS speaks.
+        eye_height = (height_ == 32) ? 13 : 19;
+        eye_y += (height_ == 32) ? 3 : 5;
     }
 
     if (heart_mode_) {
@@ -588,9 +594,26 @@ void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
     }
 }
 
-bool OledDisplay::SetEmotion(const char* emotion) {
+void OledDisplay::SetStatus(const char* status) {
+    if (status == nullptr) return;
+
+    const bool speaking_now = (std::strcmp(status, Lang::Strings::SPEAKING) == 0);
+    if (speaking_now == speaking_) return;
+
     DisplayLockGuard lock(this);
-    ApplyEyeEmotion(emotion);
+    speaking_ = speaking_now;
+    ApplyEyeEmotion(current_emotion_.c_str());
+}
+
+bool OledDisplay::SetEmotion(const char* emotion) {
+    if (emotion == nullptr || emotion[0] == '\\0') return false;
+
+    DisplayLockGuard lock(this);
+    current_emotion_ = emotion;
+    std::transform(current_emotion_.begin(), current_emotion_.end(),
+                   current_emotion_.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    ApplyEyeEmotion(current_emotion_.c_str());
     return true;
 }
 
