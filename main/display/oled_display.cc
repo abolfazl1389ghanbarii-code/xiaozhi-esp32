@@ -636,3 +636,5 @@ void OledDisplay::SetPowerSaveMode(bool on) {
     }
     LvglDisplay::SetPowerSaveMode(on);
 }
+
+// Trigger targeted CI build for corrected OLED face behavior.
