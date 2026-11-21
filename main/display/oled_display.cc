@@ -613,3 +613,5 @@ void OledDisplay::SetPowerSaveMode(bool on) {
     }
     LvglDisplay::SetPowerSaveMode(on);
 }
+
+// CI build trigger for the OLED expressive-face update.
