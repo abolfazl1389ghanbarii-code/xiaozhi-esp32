@@ -636,3 +636,5 @@ void OledDisplay::SetPowerSaveMode(bool on) {
     }
     LvglDisplay::SetPowerSaveMode(on);
 }
+
+// Trigger CI after correcting the null character literal.
