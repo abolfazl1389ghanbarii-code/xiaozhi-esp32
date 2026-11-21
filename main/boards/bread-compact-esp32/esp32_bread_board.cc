@@ -74,6 +74,11 @@ private:
             err = esp_lcd_panel_init(panel_);
         }
         if (err == ESP_OK) {
+            // The current SSD1306 module presents the monochrome bit polarity inverted.
+            // Invert at the panel level so LVGL black remains physically dark and white eyes light up.
+            err = esp_lcd_panel_invert_color(panel_, true);
+        }
+        if (err == ESP_OK) {
             err = esp_lcd_panel_disp_on_off(panel_, true);
         }
 

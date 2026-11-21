@@ -6,6 +6,9 @@
 
 #include <algorithm>
 #include <string>
+#include <initializer_list>
+#include <cctype>
+#include <cstring>
 
 #include <esp_err.h>
 #include <esp_log.h>
@@ -95,14 +98,14 @@ void OledDisplay::SetupUI() {
     }
 
     Display::SetupUI();  // Mark SetupUI as called
-    if (height_ == 64) {
-        SetupUI_128x64();
-    } else {
-        SetupUI_128x32();
-    }
+    SetupFaceUI();
 }
 
 OledDisplay::~OledDisplay() {
+    if (blink_timer_ != nullptr) {
+        lv_timer_delete(blink_timer_);
+        blink_timer_ = nullptr;
+    }
     if (content_ != nullptr) {
         lv_obj_del(content_);
     }
@@ -410,28 +413,208 @@ void OledDisplay::SetupUI_128x32() {
                                    LV_PART_MAIN);
 }
 
-bool OledDisplay::SetEmotion(const char* emotion) {
-    auto lvgl_theme = static_cast<LvglTheme*>(current_theme_);
-    const char* utf8 = noto_emoji_get_utf8(emotion);
-    const lv_font_t* emotion_font = lvgl_theme->emoji_font()->font();
-    if (utf8 == nullptr) {
-        utf8 = material_symbols_get_utf8(emotion);
-        emotion_font = lvgl_theme->large_icon_font()->font();
-    }
+void OledDisplay::SetupFaceUI() {
     DisplayLockGuard lock(this);
-    if (emotion_label_ == nullptr) {
-        return false;
+    auto screen = lv_screen_active();
+    lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(screen, 0, 0);
+    lv_obj_set_style_pad_all(screen, 0, 0);
+    lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
+
+    // Monochrome OLED: black background, bright white facial features.
+    const int eye_width = (height_ == 32) ? 20 : 27;
+    eye_open_height_ = (height_ == 32) ? 19 : 29;
+    const int eye_y = (height_ == 32) ? 6 : 17;
+    const int eye_gap = (height_ == 32) ? 24 : 20;
+    const int eye_x = (width_ - (eye_width * 2 + eye_gap)) / 2;
+
+    eye_left_ = lv_obj_create(screen);
+    eye_right_ = lv_obj_create(screen);
+    for (lv_obj_t* eye : {eye_left_, eye_right_}) {
+        lv_obj_set_size(eye, eye_width, eye_open_height_);
+        lv_obj_set_style_bg_color(eye, lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(eye, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(eye, 0, 0);
+        lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_pad_all(eye, 0, 0);
+        lv_obj_clear_flag(eye, LV_OBJ_FLAG_SCROLLABLE);
     }
-    if (utf8 != nullptr) {
-        lv_obj_set_style_text_font(emotion_label_, emotion_font, 0);
-        lv_label_set_text(emotion_label_, utf8);
-        return true;
+    lv_obj_set_pos(eye_left_, eye_x, eye_y);
+    lv_obj_set_pos(eye_right_, eye_x + eye_width + eye_gap, eye_y);
+
+    // Each heart is built from two round lobes and one rotated square.
+    const int heart_size = (height_ == 32) ? 17 : 24;
+    const int lobe = (height_ == 32) ? 9 : 13;
+    const int diamond = (height_ == 32) ? 11 : 16;
+    const int heart_gap = (height_ == 32) ? 24 : 20;
+    const int heart_x = (width_ - (heart_size * 2 + heart_gap)) / 2;
+    const int heart_y = (height_ == 32) ? 7 : 19;
+    for (int i = 0; i < 6; ++i) {
+        heart_parts_[i] = lv_obj_create(screen);
+        lv_obj_set_style_bg_color(heart_parts_[i], lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(heart_parts_[i], LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(heart_parts_[i], 0, 0);
+        lv_obj_set_style_pad_all(heart_parts_[i], 0, 0);
+        lv_obj_clear_flag(heart_parts_[i], LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(heart_parts_[i], LV_OBJ_FLAG_HIDDEN);
     }
-    // Neither font has a glyph for this name, so what is shown is the neutral placeholder and
-    // not the emotion that was asked for.
-    lv_obj_set_style_text_font(emotion_label_, lvgl_theme->emoji_font()->font(), 0);
-    lv_label_set_text(emotion_label_, NOTO_EMOJI_NEUTRAL);
-    return false;
+    for (int side = 0; side < 2; ++side) {
+        const int x = heart_x + side * (heart_size + heart_gap);
+        lv_obj_set_size(heart_parts_[side * 3], diamond, diamond);
+        lv_obj_set_style_radius(heart_parts_[side * 3], 2, 0);
+        lv_obj_set_style_transform_rotation(heart_parts_[side * 3], 450, 0);
+        lv_obj_set_pos(heart_parts_[side * 3], x + (heart_size - diamond) / 2,
+                       heart_y + heart_size / 2);
+        for (int l = 0; l < 2; ++l) {
+            lv_obj_t* lobe_obj = heart_parts_[side * 3 + 1 + l];
+            lv_obj_set_size(lobe_obj, lobe, lobe);
+            lv_obj_set_style_radius(lobe_obj, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_pos(lobe_obj, x + l * (lobe - 1), heart_y);
+        }
+    }
+
+    // Eyebrows are hidden in the neutral face and shown only for expressions.
+    eyebrow_left_ = lv_obj_create(screen);
+    eyebrow_right_ = lv_obj_create(screen);
+    const int brow_width = (height_ == 32) ? 15 : 21;
+    for (lv_obj_t* brow : {eyebrow_left_, eyebrow_right_}) {
+        lv_obj_set_size(brow, brow_width, 3);
+        lv_obj_set_style_bg_color(brow, lv_color_white(), 0);
+        lv_obj_set_style_bg_opa(brow, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(brow, 0, 0);
+        lv_obj_set_style_radius(brow, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_pad_all(brow, 0, 0);
+        lv_obj_add_flag(brow, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    blink_counter_ = 0;
+    blink_timer_ = lv_timer_create(BlinkTimerCallback, 100, this);
+}
+
+void OledDisplay::ApplyEyeEmotion(const char* emotion) {
+    if (eye_left_ == nullptr || eye_right_ == nullptr) return;
+
+    const std::string mood = (emotion == nullptr) ? "neutral" : emotion;
+    const bool happy = mood == "happy" || mood == "laugh" || mood == "love" ||
+                       mood == "loving" || mood == "happiness" || mood == "joy";
+    heart_mode_ = happy;
+
+    const int base_width = (height_ == 32) ? 20 : 27;
+    const int base_height = (height_ == 32) ? 19 : 29;
+    const int base_y = (height_ == 32) ? 6 : 17;
+    const int gap = (height_ == 32) ? 24 : 20;
+    int eye_width = base_width;
+    int eye_height = base_height;
+    int eye_y = base_y;
+
+    const bool sad = mood == "sad" || mood == "cry" || mood == "crying" ||
+                     mood == "sadness" || mood == "sorrow";
+    const bool surprised = mood == "surprised" || mood == "surprise" ||
+                           mood == "astonished" || mood == "fear" || mood == "scared";
+    const bool angry = mood == "angry" || mood == "serious" || mood == "disgust";
+    const bool sleepy = mood == "sleepy" || mood == "sleep" || mood == "tired";
+
+    if (sad) {
+        eye_height = (height_ == 32) ? 14 : 21;
+        eye_y += (height_ == 32) ? 2 : 3;
+    } else if (surprised) {
+        eye_width = (height_ == 32) ? 22 : 32;
+        eye_height = (height_ == 32) ? 22 : 35;
+        eye_y = (height_ == 32) ? 5 : 14;
+    } else if (angry) {
+        eye_height = (height_ == 32) ? 12 : 18;
+        eye_width += (height_ == 32) ? 1 : 2;
+        eye_y += (height_ == 32) ? 3 : 5;
+    } else if (sleepy) {
+        eye_height = (height_ == 32) ? 7 : 11;
+        eye_y += (height_ == 32) ? 6 : 9;
+    } else if (speaking_ && !happy) {
+        // Keep the normal round eyes at rest; make them visibly oval while TTS speaks.
+        eye_height = (height_ == 32) ? 13 : 19;
+        eye_y += (height_ == 32) ? 3 : 5;
+    }
+
+    if (heart_mode_) {
+        lv_obj_add_flag(eye_left_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(eye_right_, LV_OBJ_FLAG_HIDDEN);
+        for (lv_obj_t* part : heart_parts_) lv_obj_clear_flag(part, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        for (lv_obj_t* part : heart_parts_) lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(eye_left_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(eye_right_, LV_OBJ_FLAG_HIDDEN);
+        const int x = (width_ - (eye_width * 2 + gap)) / 2;
+        for (lv_obj_t* eye : {eye_left_, eye_right_}) {
+            lv_obj_set_size(eye, eye_width, eye_height);
+            lv_obj_set_style_radius(eye, LV_RADIUS_CIRCLE, 0);
+        }
+        lv_obj_set_pos(eye_left_, x, eye_y);
+        lv_obj_set_pos(eye_right_, x + eye_width + gap, eye_y);
+        eye_open_height_ = eye_height;
+    }
+
+    if (sad || angry) {
+        lv_obj_clear_flag(eyebrow_left_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(eyebrow_right_, LV_OBJ_FLAG_HIDDEN);
+        const int brow_width = (height_ == 32) ? 15 : 21;
+        const int brow_y = (height_ == 32) ? 1 : 10;
+        const int brow_gap = (height_ == 32) ? 24 : 20;
+        const int brow_x = (width_ - (brow_width * 2 + brow_gap)) / 2;
+        // Sad brows rise toward the center; angry brows tilt the opposite way.
+        lv_obj_set_style_transform_rotation(eyebrow_left_, sad ? 3400 : 200, 0);
+        lv_obj_set_style_transform_rotation(eyebrow_right_, sad ? 200 : 3400, 0);
+        lv_obj_set_pos(eyebrow_left_, brow_x, brow_y);
+        lv_obj_set_pos(eyebrow_right_, brow_x + brow_width + brow_gap, brow_y);
+    } else {
+        lv_obj_add_flag(eyebrow_left_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(eyebrow_right_, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+void OledDisplay::BlinkTimerCallback(lv_timer_t* timer) {
+    auto* self = static_cast<OledDisplay*>(lv_timer_get_user_data(timer));
+    if (self == nullptr || self->eye_left_ == nullptr || self->eye_right_ == nullptr) return;
+
+    ++self->blink_counter_;
+    if (self->blink_counter_ == 45) {
+        if (self->heart_mode_) {
+            for (lv_obj_t* part : self->heart_parts_) lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_set_height(self->eye_left_, 2);
+            lv_obj_set_height(self->eye_right_, 2);
+        }
+    } else if (self->blink_counter_ >= 47) {
+        if (self->heart_mode_) {
+            for (lv_obj_t* part : self->heart_parts_) lv_obj_clear_flag(part, LV_OBJ_FLAG_HIDDEN);
+        } else {
+            lv_obj_set_height(self->eye_left_, self->eye_open_height_);
+            lv_obj_set_height(self->eye_right_, self->eye_open_height_);
+        }
+        self->blink_counter_ = 0;
+    }
+}
+
+void OledDisplay::SetStatus(const char* status) {
+    if (status == nullptr) return;
+
+    const bool speaking_now = (std::strcmp(status, Lang::Strings::SPEAKING) == 0);
+    if (speaking_now == speaking_) return;
+
+    DisplayLockGuard lock(this);
+    speaking_ = speaking_now;
+    ApplyEyeEmotion(current_emotion_.c_str());
+}
+
+bool OledDisplay::SetEmotion(const char* emotion) {
+    if (emotion == nullptr || emotion[0] == '\0') return false;
+
+    DisplayLockGuard lock(this);
+    current_emotion_ = emotion;
+    std::transform(current_emotion_.begin(), current_emotion_.end(),
+                   current_emotion_.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    ApplyEyeEmotion(current_emotion_.c_str());
+    return true;
 }
 
 void OledDisplay::SetTheme(Theme* theme) {

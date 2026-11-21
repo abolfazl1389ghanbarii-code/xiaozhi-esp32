@@ -5,6 +5,7 @@
 
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
+#include <lvgl.h>
 
 class OledDisplay : public LvglDisplay {
 private:
@@ -20,6 +21,21 @@ private:
     lv_obj_t* side_bar_ = nullptr;
     lv_obj_t* emotion_label_ = nullptr;
     lv_obj_t* chat_message_label_ = nullptr;
+    lv_obj_t* eye_left_ = nullptr;
+    lv_obj_t* eye_right_ = nullptr;
+    lv_obj_t* heart_parts_[6] = {};
+    lv_obj_t* eyebrow_left_ = nullptr;
+    lv_obj_t* eyebrow_right_ = nullptr;
+    bool heart_mode_ = false;
+    bool speaking_ = false;
+    std::string current_emotion_ = "neutral";
+    lv_timer_t* blink_timer_ = nullptr;
+    int blink_counter_ = 0;
+    int eye_open_height_ = 25;
+
+    void SetupFaceUI();
+    void ApplyEyeEmotion(const char* emotion);
+    static void BlinkTimerCallback(lv_timer_t* timer);
 
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
@@ -34,6 +50,7 @@ public:
 
     virtual void SetupUI() override;
     virtual void SetChatMessage(const char* role, const char* content) override;
+    virtual void SetStatus(const char* status) override;
     virtual void RemoveChatMessage(const char* role, const char* content) override;
     virtual bool SetEmotion(const char* emotion) override;
     virtual void SetTheme(Theme* theme) override;
