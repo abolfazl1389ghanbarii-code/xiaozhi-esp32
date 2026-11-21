@@ -27,6 +27,8 @@ private:
     lv_obj_t* eyebrow_left_ = nullptr;
     lv_obj_t* eyebrow_right_ = nullptr;
     bool heart_mode_ = false;
+    bool speaking_ = false;
+    std::string current_emotion_ = "neutral";
     lv_timer_t* blink_timer_ = nullptr;
     int blink_counter_ = 0;
     int eye_open_height_ = 25;
@@ -48,6 +50,7 @@ public:
 
     virtual void SetupUI() override;
     virtual void SetChatMessage(const char* role, const char* content) override;
+    virtual void SetStatus(const char* status) override;
     virtual void RemoveChatMessage(const char* role, const char* content) override;
     virtual bool SetEmotion(const char* emotion) override;
     virtual void SetTheme(Theme* theme) override;
