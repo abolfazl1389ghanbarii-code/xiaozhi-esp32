@@ -461,16 +461,18 @@ void OledDisplay::SetupFaceUI() {
     }
     for (int side = 0; side < 2; ++side) {
         const int x = heart_x + side * (heart_size + heart_gap);
+        // A compact, overlapping three-part silhouette: two upper lobes and
+        // one rotated square whose lower vertex forms the heart tip.
         lv_obj_set_size(heart_parts_[side * 3], diamond, diamond);
-        lv_obj_set_style_radius(heart_parts_[side * 3], 2, 0);
+        lv_obj_set_style_radius(heart_parts_[side * 3], 1, 0);
         lv_obj_set_style_transform_rotation(heart_parts_[side * 3], 450, 0);
         lv_obj_set_pos(heart_parts_[side * 3], x + (heart_size - diamond) / 2,
-                       heart_y + heart_size / 2);
+                       heart_y + 2);
         for (int l = 0; l < 2; ++l) {
             lv_obj_t* lobe_obj = heart_parts_[side * 3 + 1 + l];
             lv_obj_set_size(lobe_obj, lobe, lobe);
             lv_obj_set_style_radius(lobe_obj, LV_RADIUS_CIRCLE, 0);
-            lv_obj_set_pos(lobe_obj, x + l * (lobe - 1), heart_y);
+            lv_obj_set_pos(lobe_obj, x + l * (lobe - 3), heart_y);
         }
     }
 
@@ -498,6 +500,14 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
     const std::string mood = (emotion == nullptr) ? "neutral" : emotion;
     const bool happy = mood == "happy" || mood == "laugh" || mood == "love" ||
                        mood == "loving" || mood == "happiness" || mood == "joy";
+    const bool sad = mood == "sad" || mood == "cry" || mood == "crying" ||
+                     mood == "sadness" || mood == "sorrow";
+    const bool surprised = mood == "surprised" || mood == "surprise" ||
+                           mood == "astonished";
+
+    // Exactly three facial emotions are supported here:
+    // happy = heart eyes, sad = raised inner eyebrows, surprised = larger round eyes.
+    // Speaking is a separate status and uses clean horizontal oval eyes.
     heart_mode_ = happy;
 
     const int base_width = (height_ == 32) ? 20 : 27;
@@ -508,29 +518,12 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
     int eye_height = base_height;
     int eye_y = base_y;
 
-    const bool sad = mood == "sad" || mood == "cry" || mood == "crying" ||
-                     mood == "sadness" || mood == "sorrow";
-    const bool surprised = mood == "surprised" || mood == "surprise" ||
-                           mood == "astonished" || mood == "fear" || mood == "scared";
-    const bool angry = mood == "angry" || mood == "serious" || mood == "disgust";
-    const bool sleepy = mood == "sleepy" || mood == "sleep" || mood == "tired";
-
-    if (sad) {
-        eye_height = (height_ == 32) ? 14 : 21;
-        eye_y += (height_ == 32) ? 2 : 3;
-    } else if (surprised) {
+    if (surprised) {
         eye_width = (height_ == 32) ? 22 : 32;
         eye_height = (height_ == 32) ? 22 : 35;
         eye_y = (height_ == 32) ? 5 : 14;
-    } else if (angry) {
-        eye_height = (height_ == 32) ? 12 : 18;
-        eye_width += (height_ == 32) ? 1 : 2;
-        eye_y += (height_ == 32) ? 3 : 5;
-    } else if (sleepy) {
-        eye_height = (height_ == 32) ? 7 : 11;
-        eye_y += (height_ == 32) ? 6 : 9;
-    } else if (speaking_ && !happy) {
-        // Keep the normal round eyes at rest; make them visibly oval while TTS speaks.
+    } else if (speaking_ && !happy && !sad) {
+        // The TTS speaking face is two simple, solid horizontal ovals.
         eye_height = (height_ == 32) ? 13 : 19;
         eye_y += (height_ == 32) ? 3 : 5;
     }
@@ -553,16 +546,16 @@ void OledDisplay::ApplyEyeEmotion(const char* emotion) {
         eye_open_height_ = eye_height;
     }
 
-    if (sad || angry) {
+    if (sad) {
         lv_obj_clear_flag(eyebrow_left_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(eyebrow_right_, LV_OBJ_FLAG_HIDDEN);
         const int brow_width = (height_ == 32) ? 15 : 21;
         const int brow_y = (height_ == 32) ? 1 : 10;
         const int brow_gap = (height_ == 32) ? 24 : 20;
         const int brow_x = (width_ - (brow_width * 2 + brow_gap)) / 2;
-        // Sad brows rise toward the center; angry brows tilt the opposite way.
-        lv_obj_set_style_transform_rotation(eyebrow_left_, sad ? 3400 : 200, 0);
-        lv_obj_set_style_transform_rotation(eyebrow_right_, sad ? 200 : 3400, 0);
+        // Inner ends raised: a sad expression, not the angry inward slant.
+        lv_obj_set_style_transform_rotation(eyebrow_left_, 3400, 0);
+        lv_obj_set_style_transform_rotation(eyebrow_right_, 200, 0);
         lv_obj_set_pos(eyebrow_left_, brow_x, brow_y);
         lv_obj_set_pos(eyebrow_right_, brow_x + brow_width + brow_gap, brow_y);
     } else {
