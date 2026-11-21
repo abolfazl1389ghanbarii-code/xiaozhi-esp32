@@ -606,7 +606,7 @@ void OledDisplay::SetStatus(const char* status) {
 }
 
 bool OledDisplay::SetEmotion(const char* emotion) {
-    if (emotion == nullptr || emotion[0] == '\\0') return false;
+    if (emotion == nullptr || emotion[0] == '\0') return false;
 
     DisplayLockGuard lock(this);
     current_emotion_ = emotion;
