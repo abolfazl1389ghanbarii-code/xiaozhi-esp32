@@ -89,22 +89,19 @@ void McpServer::AddCommonTools() {
                 });
     }
 
+#endif  // HAVE_LVGL
+
+    // Camera tools are independent of LVGL, so OLED-only boards can use them too.
     auto camera = board.GetCamera();
     if (camera) {
         AddTool("self.camera.take_photo",
-                "Always remember you have a camera. If the user asks you to see something, use "
-                "this tool to take a photo and then explain it.\n"
-                "Args:\n"
-                "  `question`: The question that you want to ask about the photo.\n"
-                "Return:\n"
-                "  A JSON object that provides the photo information.",
+                "Use this tool when the user asks you to look at or identify something with the camera. "
+                "Capture a photo and answer the user's question about it.",
                 PropertyList({Property("question", kPropertyTypeString)}),
                 [camera](const PropertyList& properties) -> ToolResult {
-                    // Lower the priority to do the camera capture
                     TaskPriorityReset priority_reset(1);
-
                     if (!camera->Capture()) {
-                        return std::unexpected("Failed to capture photo");
+                        return std::unexpected("Failed to capture photo. Check the camera URL and network.");
                     }
                     auto question = properties["question"].value<std::string>();
                     auto result = camera->Explain(question);
@@ -113,8 +110,14 @@ void McpServer::AddCommonTools() {
                     }
                     return std::move(*result);
                 });
+
+        AddUserOnlyTool("self.camera.set_url",
+                        "Set the local network camera URL, for example http://192.168.1.50/capture.",
+                        PropertyList({Property("url", kPropertyTypeString)}),
+                        [camera](const PropertyList& properties) -> ReturnValue {
+                            return camera->SetCameraUrl(properties["url"].value<std::string>());
+                        });
     }
-#endif
 
     // Restore the original tools list to the end of the tools list
     tools_.insert(tools_.end(), std::make_move_iterator(original_tools.begin()),
