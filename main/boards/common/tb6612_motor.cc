@@ -75,7 +75,7 @@ bool Tb6612MotorController::Initialize() {
     ledc_channel_config_t channel_a = {};
     channel_a.gpio_num = pwma_;
     channel_a.speed_mode = LEDC_LOW_SPEED_MODE;
-    channel_a.channel = LEDC_CHANNEL_0;
+    channel_a.channel = LEDC_CHANNEL_6;
     channel_a.intr_type = LEDC_INTR_DISABLE;
     channel_a.timer_sel = LEDC_TIMER_0;
     channel_a.duty = 0;
@@ -86,7 +86,7 @@ bool Tb6612MotorController::Initialize() {
 
     ledc_channel_config_t channel_b = channel_a;
     channel_b.gpio_num = pwmb_;
-    channel_b.channel = LEDC_CHANNEL_1;
+    channel_b.channel = LEDC_CHANNEL_7;
     if (ledc_channel_config(&channel_b) != ESP_OK) {
         return false;
     }
@@ -113,10 +113,10 @@ void Tb6612MotorController::SetMotorDirection(bool a_forward, bool b_forward) {
 void Tb6612MotorController::SetSpeed(int speed_percent) {
     const int bounded = std::clamp(speed_percent, 0, MOTOR_MAX_SPEED_PERCENT);
     const uint32_t duty = static_cast<uint32_t>(bounded * MOTOR_PWM_MAX_DUTY / 100);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1, duty);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_6, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_6);
+    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_7, duty);
+    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_7);
 }
 
 void Tb6612MotorController::StopHardware() {
