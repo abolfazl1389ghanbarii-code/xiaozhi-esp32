@@ -32,6 +32,7 @@ class McpServerTest(unittest.TestCase):
                 #define SETTINGS_H
                 #define BOARD_NAME "host-test"
                 #include <cstdlib>
+                #include <expected>
                 #include <functional>
                 #include <iostream>
                 #include <string>
