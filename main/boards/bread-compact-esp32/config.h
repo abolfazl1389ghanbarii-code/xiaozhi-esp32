@@ -28,4 +28,14 @@
 #define DISPLAY_MIRROR_X true
 #define DISPLAY_MIRROR_Y true
 
+// TB6612FNG dual motor driver. GPIO16/17 are available on this WROOM-32
+// module because it has no PSRAM. Keep the existing audio/OLED pins unchanged.
+#define MOTOR_AIN1_GPIO GPIO_NUM_16
+#define MOTOR_AIN2_GPIO GPIO_NUM_17
+#define MOTOR_PWMA_GPIO GPIO_NUM_18
+#define MOTOR_BIN1_GPIO GPIO_NUM_19
+#define MOTOR_BIN2_GPIO GPIO_NUM_21
+#define MOTOR_PWMB_GPIO GPIO_NUM_22
+#define MOTOR_STBY_GPIO GPIO_NUM_23
+
 #endif // _BOARD_CONFIG_H_
