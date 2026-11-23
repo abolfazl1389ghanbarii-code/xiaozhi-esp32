@@ -104,6 +104,10 @@ class McpServerTest(unittest.TestCase):
                         return std::string("host-test");
                     }
                 };
+                struct MotorController {
+                    bool Move(const std::string&, int, int) { return true; }
+                    void Stop() {}
+                };
                 class Board {
                 public:
                     static Board& GetInstance() { static Board board; return board; }
@@ -112,6 +116,7 @@ class McpServerTest(unittest.TestCase):
                     AudioCodec* GetAudioCodec() { std::abort(); }
                     Backlight* GetBacklight() { return nullptr; }
                     Camera* GetCamera() { return nullptr; }
+                    MotorController* GetMotorController() { return nullptr; }
                 };
             ''',
             "display.h": "",
