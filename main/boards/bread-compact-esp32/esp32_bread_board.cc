@@ -5,6 +5,7 @@
 #include "config.h"
 #include "display/oled_display.h"
 #include "network_camera.h"
+#include "tb6612_motor.h"
 
 #include <driver/i2c_master.h>
 #include <esp_lcd_panel_io.h>
@@ -131,6 +132,14 @@ public:
     virtual Camera* GetCamera() override {
         static NetworkCamera camera;
         return &camera;
+    }
+
+    virtual MotorController* GetMotorController() override {
+        static Tb6612MotorController motors(
+            MOTOR_AIN1_GPIO, MOTOR_AIN2_GPIO, MOTOR_PWMA_GPIO,
+            MOTOR_BIN1_GPIO, MOTOR_BIN2_GPIO, MOTOR_PWMB_GPIO,
+            MOTOR_STBY_GPIO);
+        return &motors;
     }
 };
 
