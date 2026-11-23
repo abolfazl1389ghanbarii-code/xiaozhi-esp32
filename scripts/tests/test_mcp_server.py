@@ -168,7 +168,7 @@ class McpServerTest(unittest.TestCase):
                         str(ROOT / "main/mcp_server.cc"),
                         str(ROOT / "main/boards/common/press_to_talk_mcp_tool.cc"),
                         *libs, "-o", str(cls.executable)],
-            check=True, capture_output=True, text=True,
+            check=True, text=True,
         )
 
     def responses(self, requests, custom_sender=True):
