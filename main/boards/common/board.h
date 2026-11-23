@@ -46,6 +46,7 @@ using NetworkEventCallback = std::function<void(NetworkEvent event, const std::s
 void* create_board();
 class AudioCodec;
 class Display;
+class MotorController;
 class Board {
 private:
     Board(const Board&) = delete; // 禁用拷贝构造函数
