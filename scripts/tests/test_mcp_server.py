@@ -97,6 +97,11 @@ class McpServerTest(unittest.TestCase):
                     void SetExplainUrl(const std::string&, const std::string&) {
                         std::abort();
                     }
+                    bool SetCameraUrl(const std::string&) { return true; }
+                    bool Capture() { return true; }
+                    std::expected<std::string, std::string> Explain(const std::string&) {
+                        return std::string("host-test");
+                    }
                 };
                 class Board {
                 public:
