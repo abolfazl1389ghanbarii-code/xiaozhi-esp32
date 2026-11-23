@@ -65,6 +65,7 @@ list(APPEND SOURCES
     "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
     "boards/common/network_camera.cc"
+    "boards/common/tb6612_motor.cc"
 )
 if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
