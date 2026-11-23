@@ -4,6 +4,7 @@
 #include "codecs/max9814_pcm5102a_codec.h"
 #include "config.h"
 #include "display/oled_display.h"
+#include "network_camera.h"
 
 #include <driver/i2c_master.h>
 #include <esp_lcd_panel_io.h>
@@ -125,6 +126,11 @@ public:
 
     virtual Display* GetDisplay() override {
         return display_;
+    }
+
+    virtual Camera* GetCamera() override {
+        static NetworkCamera camera;
+        return &camera;
     }
 };
 
