@@ -99,7 +99,6 @@ void McpServer::AddCommonTools() {
                 "Capture a photo and answer the user's question about it.",
                 PropertyList({Property("question", kPropertyTypeString)}),
                 [camera](const PropertyList& properties) -> ToolResult {
-                    TaskPriorityReset priority_reset(1);
                     if (!camera->Capture()) {
                         return std::unexpected("Failed to capture photo. Check the camera URL and network.");
                     }
