@@ -119,6 +119,30 @@ void McpServer::AddCommonTools() {
                         });
     }
 
+    // Motor control is local and independent of the audio pipeline.
+    auto motor = board.GetMotorController();
+    if (motor) {
+        AddTool("self.motor.move",
+                "Move the robot briefly in a requested direction. Use only for clear movement "
+                "commands. Direction must be forward, backward, left, or right. The controller "
+                "enforces a maximum speed of 40 percent and an automatic stop within 1.5 seconds. "
+                "For stopping, call self.motor.stop.",
+                PropertyList({Property("direction", kPropertyTypeString),
+                              Property("speed", kPropertyTypeInteger, 30, 1, 40),
+                              Property("duration_ms", kPropertyTypeInteger, 700, 100, 1500)}),
+                [motor](const PropertyList& properties) -> ReturnValue {
+                    return motor->Move(properties["direction"].value<std::string>(),
+                                       properties["speed"].value<int>(),
+                                       properties["duration_ms"].value<int>());
+                });
+
+        AddTool("self.motor.stop", "Immediately stop both drive motors.",
+                PropertyList(), [motor](const PropertyList& properties) -> ReturnValue {
+                    motor->Stop();
+                    return true;
+                });
+    }
+
     // Restore the original tools list to the end of the tools list
     tools_.insert(tools_.end(), std::make_move_iterator(original_tools.begin()),
                   std::make_move_iterator(original_tools.end()));
