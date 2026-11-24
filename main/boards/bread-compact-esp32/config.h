@@ -28,6 +28,7 @@
 #define DISPLAY_MIRROR_X true
 #define DISPLAY_MIRROR_Y true
 
+// Target-specific pin map: ESP32-WROOM-32 without PSRAM.
 // TB6612FNG dual motor driver. GPIO16/17 are available on this WROOM-32
 // module because it has no PSRAM. Keep the existing audio/OLED pins unchanged.
 #define MOTOR_AIN1_GPIO GPIO_NUM_16
