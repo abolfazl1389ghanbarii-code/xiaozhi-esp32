@@ -17,6 +17,7 @@
 #include "display.h"
 #include "lvgl_image.h"
 #include "lvgl_theme.h"
+#include "motor_controller.h"
 #include "settings.h"
 
 #define TAG "MCP"
