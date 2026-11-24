@@ -104,10 +104,9 @@ class McpServerTest(unittest.TestCase):
                         return std::string("host-test");
                     }
                 };
-                struct MotorController {
-                    bool Move(const std::string&, int, int) { return true; }
-                    void Stop() {}
-                };
+                // Use the production interface so the host stub cannot drift or
+                // conflict with mcp_server.cc's real motor_controller.h include.
+                #include "motor_controller.h"
                 class Board {
                 public:
                     static Board& GetInstance() { static Board board; return board; }
