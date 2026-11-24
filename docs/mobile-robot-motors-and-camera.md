@@ -54,6 +54,8 @@ Before selecting the TB6612FNG, verify each motor's stall current. Its current r
 
 See `extras/network-camera-esp32cam/README.md`. The camera endpoint has no authentication and must remain on a trusted LAN. Do not expose it through router port forwarding.
 
+<!-- CI rebuild after MCP include fix -->
+
 ## Validation status
 
 The code is not considered ready to flash until:
