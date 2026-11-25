@@ -11,7 +11,6 @@ set(SOURCES "audio/audio_codec.cc"
             "audio/codecs/es8388_audio_codec.cc"
             "audio/codecs/es8389_audio_codec.cc"
             "audio/codecs/dummy_audio_codec.cc"
-            "audio/codecs/max9814_pcm5102a_codec.cc"
             "led/single_led.cc"
             "led/circular_strip.cc"
             "led/gpio_led.cc"
@@ -64,8 +63,6 @@ list(APPEND SOURCES
     "boards/common/sleep_timer.cc"
     "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
-    "boards/common/network_camera.cc"
-    "boards/common/tb6612_motor.cc"
 )
 if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
@@ -963,6 +960,18 @@ elseif(CONFIG_BOARD_TYPE_LC_S3_WIFI_1_54TFT)
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
     set(BUILTIN_ICON_FONT font_material_symbols_20_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
+endif()
+
+# These implementations are specific to the original ESP32-WROOM-32
+# MAX9814/PCM5102A robot board. Keep them out of unrelated C3/C6/S3 builds:
+# the codec uses the original ESP32 ADC1 GPIO34, and the motor/camera adapters
+# are only instantiated by bread-compact-esp32.
+if(CONFIG_BOARD_TYPE_BREAD_COMPACT_ESP32)
+    list(APPEND SOURCES
+        "audio/codecs/max9814_pcm5102a_codec.cc"
+        "boards/common/network_camera.cc"
+        "boards/common/tb6612_motor.cc"
+    )
 endif()
 
 if(NOT BOARD_DIR AND NOT CMAKE_BUILD_EARLY_EXPANSION)
