@@ -23,3 +23,5 @@ Xiaozhi Assistant -> Board Type -> 面包板 ESP32 DevKit
 ```bash
 idf.py build
 ```
+
+Experimental no-PSRAM WakeNet build validation target.
