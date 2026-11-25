@@ -989,14 +989,16 @@ class BuildOptionTests(unittest.TestCase):
                 '    bool "Hello (wn9s_hello)"\n'
                 '\n'
                 'config SR_WN_WN9_JARVIS_TTS\n'
-                '    bool "Jarvis (wn9_jarvis_tts)"\n',
+                '    bool "Jarvis (wn9_jarvis_tts)"\n'
+                'config SR_WN_WN10S_HILEXIN\n'
+                '    bool "Hi Lexin (wn10s_hilexin)"\n',
                 encoding="utf-8",
             )
             wake_words = build._collect_wake_words(kconfig)
 
         self.assertEqual(
             [item["model"] for item in wake_words],
-            ["wn9s_hello", "wn9_jarvis_tts"],
+            ["wn9s_hello", "wn9_jarvis_tts", "wn10s_hilexin"],
         )
         self.assertEqual(
             [item["phrase"] for item in wake_words],
@@ -1004,6 +1006,9 @@ class BuildOptionTests(unittest.TestCase):
         )
         self.assertIn("esp32c5", wake_words[0]["targets"])
         self.assertNotIn("esp32c5", wake_words[1]["targets"])
+        self.assertIn("esp32", wake_words[2]["targets"])
+        self.assertIn("esp32c5", wake_words[2]["targets"])
+        self.assertNotIn("esp32s3", wake_words[2]["targets"])
 
     def test_missing_esp_sr_kconfig_has_actionable_error(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1075,12 +1080,21 @@ class BuildOptionTests(unittest.TestCase):
                 "wn9_jarvis_tts",
                 "esp32c6",
             )
+        with self.assertRaisesRegex(ValueError, "WakeNet10s"):
+            build._wake_word_sdkconfig_options(
+                "wn9_jarvis_tts", "esp32", has_psram=False
+            )
+        model, options, _ = build._wake_word_sdkconfig_options(
+            "hiesp", "esp32", has_psram=False
+        )
+        self.assertEqual(model, "wn10s_hilexin")
+        self.assertIn("CONFIG_SR_WN_WN10S_HILEXIN=y", options)
         with self.assertRaisesRegex(ValueError, "Invalid wake word"):
             build._wake_word_sdkconfig_options("jarvis", "esp32s3")
 
     def test_board_wake_word_support_obeys_psram_dependency(self):
         self.assertTrue(build._board_supports_wake_word("esp32c3", []))
-        self.assertFalse(build._board_supports_wake_word("esp32", []))
+        self.assertTrue(build._board_supports_wake_word("esp32", []))
         self.assertTrue(
             build._board_supports_wake_word("esp32", ["CONFIG_SPIRAM=y"])
         )
