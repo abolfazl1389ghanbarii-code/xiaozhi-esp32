@@ -1002,7 +1002,7 @@ class BuildOptionTests(unittest.TestCase):
         )
         self.assertEqual(
             [item["phrase"] for item in wake_words],
-            ["Hello", "Jarvis"],
+            ["Hello", "Jarvis", "Hi Lexin"],
         )
         self.assertIn("esp32c5", wake_words[0]["targets"])
         self.assertNotIn("esp32c5", wake_words[1]["targets"])
