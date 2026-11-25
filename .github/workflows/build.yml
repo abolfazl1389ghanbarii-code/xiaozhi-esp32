@@ -8,6 +8,7 @@ on:
       - main
       - ci/* # for ci test
       - feature/* # validate feature branches, including network-camera work
+      - integration/* # validate integrated robot firmware branches
   pull_request:
     branches:
       - main
