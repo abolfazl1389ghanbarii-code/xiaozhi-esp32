@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feature/network-camera-no-psram
+      - integration/xiaozhi-mobile-robot-wakenet
   pull_request:
     branches:
       - ci/robot-eyes-corrected-v2
