@@ -1,0 +1,68 @@
+name: Build ESP32-CAM network camera
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/network-camera-no-psram
+  pull_request:
+    branches:
+      - ci/robot-eyes-corrected-v2
+
+permissions:
+  contents: read
+
+jobs:
+  build-camera:
+    name: Build AI Thinker ESP32-CAM (PSRAM)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Install Espressif Arduino core
+        shell: bash
+        run: |
+          set -euxo pipefail
+          arduino-cli config init
+          arduino-cli core update-index --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core install esp32:esp32 --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core list
+
+      - name: Compile AI Thinker ESP32-CAM firmware
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p "$RUNNER_TEMP/network_camera" "$RUNNER_TEMP/camera-build"
+          cp extras/network-camera-esp32cam/network_camera.ino "$RUNNER_TEMP/network_camera/network_camera.ino"
+          arduino-cli compile --verbose \
+            --fqbn esp32:esp32:esp32cam:PSRAM=enabled,FlashMode=dio,FlashFreq=40,FlashSize=4M \
+            --warnings all \
+            --output-dir "$RUNNER_TEMP/camera-build" \
+            "$RUNNER_TEMP/network_camera"
+          echo "=== Build outputs ==="
+          find "$RUNNER_TEMP/camera-build" -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+          test -s "$RUNNER_TEMP/camera-build/network_camera.ino.bin"
+          cp "$RUNNER_TEMP/camera-build/network_camera.ino.bin" "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-app.bin"
+          printf '%s\n' \
+            'Board: AI Thinker ESP32-CAM' \
+            'Target: ESP32, 4 MB flash, PSRAM enabled, DIO, 40 MHz' \
+            'Application image: xiaozhi-esp32cam-app.bin' \
+            'Application flash offset: 0x10000' \
+            'This artifact is a separate camera-node firmware, not the main XiaoZhi ESP32 firmware.' \
+            > "$RUNNER_TEMP/camera-build/FLASH-INFO.txt"
+
+      - name: Upload camera firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaozhi-esp32cam-network-camera
+          path: |
+            ${{ runner.temp }}/camera-build/xiaozhi-esp32cam-app.bin
+            ${{ runner.temp }}/camera-build/FLASH-INFO.txt
+            ${{ runner.temp }}/camera-build/network_camera.ino.bootloader.bin
+            ${{ runner.temp }}/camera-build/network_camera.ino.partitions.bin
+            ${{ runner.temp }}/camera-build/network_camera.ino.boot_app0.bin
+          if-no-files-found: warn
