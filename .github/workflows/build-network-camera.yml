@@ -45,14 +45,34 @@ jobs:
             "$RUNNER_TEMP/network_camera"
           echo "=== Build outputs ==="
           find "$RUNNER_TEMP/camera-build" -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
-          test -s "$RUNNER_TEMP/camera-build/network_camera.ino.bin"
-          cp "$RUNNER_TEMP/camera-build/network_camera.ino.bin" "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-app.bin"
-          printf '%s\n' \
-            'Board: AI Thinker ESP32-CAM' \
-            'Target: ESP32, 4 MB flash, PSRAM enabled, DIO, 40 MHz' \
-            'Application image: xiaozhi-esp32cam-app.bin' \
-            'Application flash offset: 0x10000' \
-            'This artifact is a separate camera-node firmware, not the main XiaoZhi ESP32 firmware.' \
+          APP="$RUNNER_TEMP/camera-build/network_camera.ino.bin"
+          BOOTLOADER="$RUNNER_TEMP/camera-build/network_camera.ino.bootloader.bin"
+          PARTITIONS="$RUNNER_TEMP/camera-build/network_camera.ino.partitions.bin"
+          test -s "$APP"
+          test -s "$BOOTLOADER"
+          test -s "$PARTITIONS"
+
+          BOOT_APP0="$(find "$HOME/.arduino15/packages/esp32" -type f -name boot_app0.bin -print -quit)"
+          ESPTOOL="$(find "$HOME/.arduino15/packages/esp32/tools/esptool_py" -type f \\( -name esptool.py -o -name esptool \\) -print -quit)"
+          test -n "$BOOT_APP0" && test -s "$BOOT_APP0"
+          test -n "$ESPTOOL" && test -s "$ESPTOOL"
+
+          if [[ "$ESPTOOL" == *.py ]]; then
+            python "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \\
+              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \\
+              0x1000 "$BOOTLOADER" 0x8000 "$PARTITIONS" 0xe000 "$BOOT_APP0" 0x10000 "$APP"
+          else
+            "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \\
+              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \\
+              0x1000 "$BOOTLOADER" 0x8000 "$PARTITIONS" 0xe000 "$BOOT_APP0" 0x10000 "$APP"
+          fi
+          test -s "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin"
+          printf '%s\n' \\
+            'Board: AI Thinker ESP32-CAM' \\
+            'Target: ESP32, 4 MB flash, PSRAM enabled, DIO, 40 MHz' \\
+            'File: xiaozhi-esp32cam-merged.bin' \\
+            'Flash address: 0x00000000 (merged image)' \\
+            'This is a separate camera-node firmware, not the main XiaoZhi ESP32 firmware.' \\
             > "$RUNNER_TEMP/camera-build/FLASH-INFO.txt"
 
       - name: Upload camera firmware artifact
@@ -60,9 +80,6 @@ jobs:
         with:
           name: xiaozhi-esp32cam-network-camera
           path: |
-            ${{ runner.temp }}/camera-build/xiaozhi-esp32cam-app.bin
+            ${{ runner.temp }}/camera-build/xiaozhi-esp32cam-merged.bin
             ${{ runner.temp }}/camera-build/FLASH-INFO.txt
-            ${{ runner.temp }}/camera-build/network_camera.ino.bootloader.bin
-            ${{ runner.temp }}/camera-build/network_camera.ino.partitions.bin
-            ${{ runner.temp }}/camera-build/network_camera.ino.boot_app0.bin
-          if-no-files-found: warn
+          if-no-files-found: error
