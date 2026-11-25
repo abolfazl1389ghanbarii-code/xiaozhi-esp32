@@ -34,7 +34,7 @@ _WAKE_WORD_TARGETS = (
     "esp32p4",
     "esp32s31",
 )
-_WAKE_WORD_MODEL_PATTERN = re.compile(r"^wn9[sl]?_[a-z0-9_]+$")
+_WAKE_WORD_MODEL_PATTERN = re.compile(r"^wn(?:9[sl]?|10s?)_[a-z0-9_]+$")
 _ESP_SR_KCONFIG = Path(
     "managed_components/espressif__esp-sr/Kconfig.projbuild"
 )
@@ -257,16 +257,12 @@ def _collect_wake_words(
             if label.endswith(suffix)
             else label
         )
-        targets = (
-            _WAKE_WORD_TARGETS
-            if model.startswith("wn9s_")
-            else (
-                "esp32",
-                "esp32s3",
-                "esp32p4",
-                "esp32s31",
-            )
-        )
+        if model.startswith("wn9s_"):
+            targets = _WAKE_WORD_TARGETS
+        elif model.startswith("wn10s_"):
+            targets = ("esp32", "esp32c3", "esp32c5", "esp32c6")
+        else:
+            targets = ("esp32", "esp32s3", "esp32p4", "esp32s31")
         wake_words.append({
             "model": model,
             "phrase": phrase,
@@ -307,7 +303,10 @@ def _board_supports_wake_word(
         return False
     if target in _LITE_WAKE_WORD_TARGETS:
         return True
-    if target not in _AFE_WAKE_WORD_TARGETS | {"esp32"}:
+    if target == "esp32":
+        # ESP-SR 2.6.x provides WakeNet10s for the classic ESP32 without PSRAM.
+        return True
+    if target not in _AFE_WAKE_WORD_TARGETS:
         return False
 
     defaults: list[str] = []
@@ -328,10 +327,19 @@ def _board_supports_wake_word(
 def _wake_word_sdkconfig_options(
     wake_word: str,
     target: str,
+    has_psram: bool = True,
 ) -> tuple[str, list[str], list[str]]:
     """Map a wake-word model to implementation and model Kconfig options."""
     normalized = wake_word.strip().casefold().replace("-", "_")
-    if normalized == "nihaoxiaozhi":
+    if target == "esp32" and not has_psram:
+        if normalized == "hiesp":
+            normalized = "wn10s_hilexin"
+        elif normalized != "disabled" and not normalized.startswith("wn10s_"):
+            raise ValueError(
+                "ESP32 without PSRAM supports WakeNet10s models only; "
+                "use 'wn10s_hilexin' or 'hiesp'."
+            )
+    elif normalized == "nihaoxiaozhi":
         normalized = (
             "wn9s_nihaoxiaozhi"
             if target in _LITE_WAKE_WORD_TARGETS
@@ -361,9 +369,9 @@ def _wake_word_sdkconfig_options(
             "'nihaoxiaozhi', 'hiesp', or an ESP-SR model name such as "
             "'wn9_jarvis_tts'."
         )
-    if target in _LITE_WAKE_WORD_TARGETS and not normalized.startswith("wn9s_"):
+    if target in _LITE_WAKE_WORD_TARGETS and not normalized.startswith(("wn9s_", "wn10s_")):
         raise ValueError(
-            f"Target {target} supports WakeNet9s models only; "
+            f"Target {target} supports WakeNet9s/WakeNet10s models only; "
             f"{normalized!r} is not compatible"
         )
 
@@ -1612,18 +1620,30 @@ def build_board(
             ([option.split("=", 1)[0]], "--language")
         )
         wake_word_supported = _board_supports_wake_word(target, sdkconfig_append)
+        defaults_for_psram: list[str] = []
+        for defaults_path in (Path("sdkconfig.defaults"), Path(f"sdkconfig.defaults.{target}")):
+            if defaults_path.exists():
+                defaults_for_psram.extend(
+                    line.strip()
+                    for line in defaults_path.read_text(encoding="utf-8").splitlines()
+                    if line.strip().startswith("CONFIG_") and "=" in line
+                )
+        psram_enabled = _sdkconfig_assignments(
+            _merge_sdkconfig_options(defaults_for_psram, sdkconfig_append)
+        ).get("CONFIG_SPIRAM") == "y"
         requested_wake_word = wake_word
         if requested_wake_word is None:
             requested_wake_word = "disabled"
             if wake_word_supported:
                 requested_wake_word = (
-                    "nihaoxiaozhi" if selected_language in {"zh-CN", "zh-TW"} else "hiesp"
+                    "hiesp" if target == "esp32" and not psram_enabled
+                    else ("nihaoxiaozhi" if selected_language in {"zh-CN", "zh-TW"} else "hiesp")
                 )
         (
             selected_wake_word,
             wake_word_options,
             wake_word_symbols,
-        ) = _wake_word_sdkconfig_options(requested_wake_word, target)
+        ) = _wake_word_sdkconfig_options(requested_wake_word, target, psram_enabled)
         if selected_wake_word != "disabled" and not wake_word_supported:
             raise ValueError(
                 f"Wake-word detection is disabled or unsupported for {final_name!r}; "
