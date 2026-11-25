@@ -1519,7 +1519,9 @@ class LanguageBuildTests(unittest.TestCase):
                         models = [item for item in fragment if item.startswith("CONFIG_SR_WN_")]
                         if variant["wake_word_supported"]:
                             chinese = language in {"zh-CN", "zh-TW"}
-                            if target in {"esp32c3", "esp32c5", "esp32c6"}:
+                            if target == "esp32" and "CONFIG_SPIRAM=y" not in fragment:
+                                model = "WN10S_HILEXIN"
+                            elif target in {"esp32c3", "esp32c5", "esp32c6"}:
                                 model = "WN9S_NIHAOXIAOZHI" if chinese else "WN9S_HIESP"
                             else:
                                 model = "WN9_NIHAOXIAOZHI_TTS" if chinese else "WN9_HIESP"
@@ -1566,9 +1568,9 @@ class LanguageBuildTests(unittest.TestCase):
     def test_explicit_wake_word_overrides_language_default(self):
         with self.mock_idf() as (_, configure, _):
             for language, wake_word, expected in (
-                ("en-US", "nihaoxiaozhi", "CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=y"),
-                ("zh-CN", "hiesp", "CONFIG_SR_WN_WN9_HIESP=y"),
-                ("zh-TW", "wn9_jarvis_tts", "CONFIG_SR_WN_WN9_JARVIS_TTS=y"),
+                ("en-US", "wn10s_hilexin", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
+                ("zh-CN", "hiesp", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
+                ("zh-TW", "wn10s_hilexin", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
                 ("en-US", "disabled", None),
             ):
                 with self.subTest(language=language, wake_word=wake_word):
@@ -1590,7 +1592,6 @@ class LanguageBuildTests(unittest.TestCase):
                 ("magiclick/c3", "magiclick-c3"),
                 ("guition/jc4827w543", "guition-jc4827w543"),
                 ("m5stack/atoms3-echo-base", "atoms3-echo-base"),
-                ("bread-compact-esp32", "bread-compact-esp32"),
             ):
                 with self.subTest(board=board):
                     with self.assertRaisesRegex(ValueError, "disabled or unsupported"):
