@@ -53,6 +53,8 @@ Display* Board::GetDisplay() {
 
 Camera* Board::GetCamera() { return nullptr; }
 
+MotorController* Board::GetMotorController() { return nullptr; }
+
 Led* Board::GetLed() {
     static NoLed led;
     return &led;

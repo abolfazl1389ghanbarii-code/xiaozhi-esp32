@@ -32,6 +32,7 @@ class McpServerTest(unittest.TestCase):
                 #define SETTINGS_H
                 #define BOARD_NAME "host-test"
                 #include <cstdlib>
+                #include <expected>
                 #include <functional>
                 #include <iostream>
                 #include <string>
@@ -97,7 +98,15 @@ class McpServerTest(unittest.TestCase):
                     void SetExplainUrl(const std::string&, const std::string&) {
                         std::abort();
                     }
+                    bool SetCameraUrl(const std::string&) { return true; }
+                    bool Capture() { return true; }
+                    std::expected<std::string, std::string> Explain(const std::string&) {
+                        return std::string("host-test");
+                    }
                 };
+                // Use the production interface so the host stub cannot drift or
+                // conflict with mcp_server.cc's real motor_controller.h include.
+                #include "motor_controller.h"
                 class Board {
                 public:
                     static Board& GetInstance() { static Board board; return board; }
@@ -106,6 +115,7 @@ class McpServerTest(unittest.TestCase):
                     AudioCodec* GetAudioCodec() { std::abort(); }
                     Backlight* GetBacklight() { return nullptr; }
                     Camera* GetCamera() { return nullptr; }
+                    MotorController* GetMotorController() { return nullptr; }
                 };
             ''',
             "display.h": "",
@@ -162,7 +172,7 @@ class McpServerTest(unittest.TestCase):
                         str(ROOT / "main/mcp_server.cc"),
                         str(ROOT / "main/boards/common/press_to_talk_mcp_tool.cc"),
                         *libs, "-o", str(cls.executable)],
-            check=True, capture_output=True, text=True,
+            check=True, text=True,
         )
 
     def responses(self, requests, custom_sender=True):
