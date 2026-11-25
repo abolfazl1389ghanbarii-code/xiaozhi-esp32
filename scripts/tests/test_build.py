@@ -1569,7 +1569,7 @@ class LanguageBuildTests(unittest.TestCase):
         with self.mock_idf() as (_, configure, _):
             for language, wake_word, expected in (
                 ("en-US", "wn10s_hilexin", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
-                ("zh-CN", "hiesp", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
+                ("zh-CN", "hiesp", "CONFIG_SR_WN_WN9_HIESP=y"),
                 ("zh-TW", "wn10s_hilexin", "CONFIG_SR_WN_WN10S_HILEXIN=y"),
                 ("en-US", "disabled", None),
             ):
