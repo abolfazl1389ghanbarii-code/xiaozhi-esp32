@@ -39,7 +39,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/network_camera" "$RUNNER_TEMP/camera-build"
           cp extras/network-camera-esp32cam/network_camera.ino "$RUNNER_TEMP/network_camera/network_camera.ino"
           arduino-cli compile --verbose \
-            --fqbn esp32:esp32:esp32cam:PSRAM=enabled,FlashMode=dio,FlashFreq=40,FlashSize=4M \
+            --fqbn esp32:esp32:esp32cam \
             --warnings all \
             --output-dir "$RUNNER_TEMP/camera-build" \
             "$RUNNER_TEMP/network_camera"
