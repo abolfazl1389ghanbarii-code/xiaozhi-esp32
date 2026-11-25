@@ -7,9 +7,11 @@ on:
     branches:
       - main
       - ci/* # for ci test
+      - feature/* # validate feature branches, including network-camera work
   pull_request:
     branches:
       - main
+      - ci/robot-eyes-corrected-v2
 
 permissions:
   contents: read

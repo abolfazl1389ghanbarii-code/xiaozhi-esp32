@@ -6,6 +6,7 @@
 
 #include <esp_heap_caps.h>
 #include <esp_log.h>
+#include <cJSON.h>
 
 #define TAG "NetworkCamera"
 
@@ -144,9 +145,11 @@ std::expected<std::string, std::string> NetworkCamera::Explain(const std::string
         return !result;
     };
 
+    const std::string vision_question =
+        "Please answer in Persian (Farsi). " + question;
     std::string question_part = "--" + boundary +
         "\r\nContent-Disposition: form-data; name=\"question\"\r\n\r\n" +
-        question + "\r\n";
+        vision_question + "\r\n";
     std::string file_header = "--" + boundary +
         "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"camera.jpg\""
         "\r\nContent-Type: image/jpeg\r\n\r\n";
@@ -172,5 +175,29 @@ std::expected<std::string, std::string> NetworkCamera::Explain(const std::string
 
     std::string response = http->ReadAll();
     http->Close();
+
+    if (response.empty()) {
+        return std::unexpected("Vision service returned an empty response");
+    }
+
+    // The vision endpoint returns JSON with the natural-language answer in
+    // its "response" field. Return that text to MCP, not the JSON envelope.
+    // Keep plain-text responses compatible with alternate vision servers.
+    cJSON* root = cJSON_Parse(response.c_str());
+    if (root != nullptr) {
+        const cJSON* answer = cJSON_GetObjectItemCaseSensitive(root, "response");
+        if (cJSON_IsString(answer) && answer->valuestring != nullptr) {
+            std::string answer_text(answer->valuestring);
+            cJSON_Delete(root);
+            if (answer_text.empty()) {
+                return std::unexpected("Vision service returned an empty answer");
+            }
+            return answer_text;
+        }
+        cJSON_Delete(root);
+        return std::unexpected(
+            "Vision service JSON does not contain a string 'response' field");
+    }
+
     return response;
 }
