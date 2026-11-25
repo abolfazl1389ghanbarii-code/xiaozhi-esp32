@@ -1,25 +1,32 @@
 /*
  * XiaoZhi network camera node
- * Target: AI Thinker ESP32-CAM + OV2640
+ * Target: AI Thinker ESP32-CAM + OV2640 + PSRAM
  *
- * Joins the same trusted 2.4 GHz Wi-Fi network as the XiaoZhi ESP32.
- * GET /health  -> JSON status
- * GET /capture -> one JPEG frame (QVGA)
+ * First boot (or after Wi-Fi credentials fail):
+ *   Connect to Wi-Fi "XiaoZhiCam-Setup" (password: camsetup123)
+ *   Open http://192.168.4.1 and enter the 2.4 GHz LAN credentials.
  *
- * Keep this endpoint on a trusted local network; do not port-forward it.
+ * On the same trusted LAN as XiaoZhi:
+ *   GET /health  -> JSON status
+ *   GET /capture -> one QVGA JPEG frame
+ *
+ * Do not expose this camera endpoint to the public internet.
  */
 
 #include "esp_camera.h"
 #include <WiFi.h>
 #include <WebServer.h>
-
-#define WIFI_SSID     "YOUR_WIFI_NAME"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#include <Preferences.h>
 
 static constexpr char kTag[] = "XiaoZhiCam";
-WebServer server(80);
+static constexpr char kSetupSsid[] = "XiaoZhiCam-Setup";
+static constexpr char kSetupPassword[] = "camsetup123";
 
-// AI Thinker ESP32-CAM pin map
+WebServer server(80);
+Preferences preferences;
+static bool setupMode = false;
+
+// AI Thinker ESP32-CAM pin map (OV2640)
 static camera_config_t camera_config = {
     .pin_pwdn = 32,
     .pin_reset = -1,
@@ -48,9 +55,98 @@ static camera_config_t camera_config = {
     .grab_mode = CAMERA_GRAB_LATEST,
 };
 
+static void handleRoot() {
+    if (!setupMode) {
+        server.send(200, "text/plain",
+                    "XiaoZhi camera is online. Use /health or /capture.");
+        return;
+    }
+
+    const String page =
+        "<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>"
+        "<meta charset='utf-8'><title>XiaoZhi Camera Setup</title></head>"
+        "<body style='font-family:sans-serif;max-width:420px;margin:40px auto;padding:16px'>"
+        "<h2>XiaoZhi Camera Wi-Fi setup</h2>"
+        "<p>Enter the 2.4 GHz Wi-Fi details used by your XiaoZhi board.</p>"
+        "<form method='POST' action='/save'>"
+        "<label>Wi-Fi name (SSID)</label><br><input name='ssid' maxlength='32' required style='width:100%;padding:10px'><br><br>"
+        "<label>Wi-Fi password</label><br><input name='password' type='password' maxlength='64' style='width:100%;padding:10px'><br><br>"
+        "<button style='padding:12px 20px'>Save and connect</button></form></body></html>";
+    server.send(200, "text/html; charset=utf-8", page);
+}
+
+static void handleSave() {
+    String ssid = server.arg("ssid");
+    String password = server.arg("password");
+    ssid.trim();
+
+    if (ssid.length() == 0 || ssid.length() > 32 || password.length() > 64) {
+        server.send(400, "text/plain; charset=utf-8",
+                    "Invalid Wi-Fi name or password length.");
+        return;
+    }
+
+    preferences.begin("xiaozhi-cam", false);
+    preferences.putString("ssid", ssid);
+    preferences.putString("password", password);
+    preferences.end();
+
+    server.send(200, "text/html; charset=utf-8",
+                "<html><meta charset='utf-8'><body style='font-family:sans-serif'>"
+                "<h3>Saved.</h3><p>The camera is restarting and will join your Wi-Fi.</p>"
+                "<p>Reconnect your phone to the normal Wi-Fi network.</p></body></html>");
+    delay(1200);
+    ESP.restart();
+}
+
+static void startSetupPortal() {
+    setupMode = true;
+    WiFi.mode(WIFI_AP);
+    WiFi.softAP(kSetupSsid, kSetupPassword);
+    server.on("/", HTTP_GET, handleRoot);
+    server.on("/save", HTTP_POST, handleSave);
+    server.begin();
+
+    Serial.printf("[%s] Wi-Fi setup AP: %s
+", kTag, kSetupSsid);
+    Serial.printf("[%s] Setup password: %s
+", kTag, kSetupPassword);
+    Serial.println("[XiaoZhiCam] Open http://192.168.4.1 to configure Wi-Fi.");
+}
+
+static bool connectSavedWiFi() {
+    preferences.begin("xiaozhi-cam", true);
+    String ssid = preferences.getString("ssid", "");
+    String password = preferences.getString("password", "");
+    preferences.end();
+
+    if (ssid.isEmpty()) return false;
+
+    WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
+    WiFi.begin(ssid.c_str(), password.c_str());
+
+    Serial.printf("[%s] Connecting to saved Wi-Fi", kTag);
+    const unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
+        delay(400);
+        Serial.print(".");
+    }
+    Serial.println();
+
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[XiaoZhiCam] Saved Wi-Fi connection failed; starting setup AP.");
+        preferences.begin("xiaozhi-cam", false);
+        preferences.clear();
+        preferences.end();
+        return false;
+    }
+    return true;
+}
+
 static void handleHealth() {
-    String json = "{\"ok\":true,\"camera\":\"ov2640\",\"format\":\"jpeg\",\"resolution\":\"320x240\"}";
-    server.send(200, "application/json", json);
+    server.send(200, "application/json",
+                "{\"ok\":true,\"camera\":\"ov2640\",\"format\":\"jpeg\",\"resolution\":\"320x240\"}");
 }
 
 static void handleCapture() {
@@ -68,7 +164,6 @@ static void handleCapture() {
         return;
     }
 
-    // Send headers first, then stream the frame directly from the camera buffer.
     server.setContentLength(frame->len);
     server.send(200, "image/jpeg", "");
     WiFiClient client = server.client();
@@ -80,7 +175,8 @@ static void handleCapture() {
         delay(0);
     }
 
-    Serial.printf("[%s] JPEG %u bytes, sent %u bytes\n",
+    Serial.printf("[%s] JPEG %u bytes, sent %u bytes
+",
                   kTag, static_cast<unsigned>(frame->len), static_cast<unsigned>(sent));
     esp_camera_fb_return(frame);
 }
@@ -90,39 +186,33 @@ void setup() {
     delay(300);
 
     if (!psramFound()) {
-        Serial.println("[XiaoZhiCam] ERROR: PSRAM not detected. Use an ESP32-CAM board with PSRAM.");
+        Serial.println("[XiaoZhiCam] ERROR: PSRAM not detected. Use an AI Thinker ESP32-CAM with PSRAM.");
         while (true) delay(1000);
     }
 
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK) {
-        Serial.printf("[XiaoZhiCam] Camera init failed: 0x%x\n", err);
+        Serial.printf("[XiaoZhiCam] Camera init failed: 0x%x
+", err);
         while (true) delay(1000);
     }
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setSleep(false);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.printf("[XiaoZhiCam] Connecting to Wi-Fi");
-    const unsigned long start = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - start < 25000) {
-        delay(400);
-        Serial.print(".");
-    }
-    Serial.println();
-
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("[XiaoZhiCam] ERROR: Wi-Fi connection timed out; check credentials.");
-        while (true) delay(1000);
+    if (!connectSavedWiFi()) {
+        startSetupPortal();
+        return;
     }
 
+    server.on("/", HTTP_GET, handleRoot);
     server.on("/health", HTTP_GET, handleHealth);
     server.on("/capture", HTTP_GET, handleCapture);
     server.begin();
 
-    Serial.printf("[XiaoZhiCam] Ready. Camera IP: %s\n", WiFi.localIP().toString().c_str());
-    Serial.printf("[XiaoZhiCam] Test: http://%s/health\n", WiFi.localIP().toString().c_str());
-    Serial.printf("[XiaoZhiCam] JPEG: http://%s/capture\n", WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] Ready. Camera IP: %s
+", kTag, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] Health: http://%s/health
+", kTag, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] JPEG: http://%s/capture
+", kTag, WiFi.localIP().toString().c_str());
 }
 
 void loop() {
