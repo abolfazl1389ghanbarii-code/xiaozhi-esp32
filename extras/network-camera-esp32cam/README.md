@@ -1,25 +1,41 @@
 # ESP32-CAM node for XiaoZhi
 
-Target: AI Thinker ESP32-CAM with OV2640 and PSRAM.
+Target: **AI Thinker ESP32-CAM with OV2640 camera and working PSRAM**.
 
-## Arduino IDE setup
+This is a separate firmware for the camera board. It does not replace or modify the main XiaoZhi ESP32 firmware or its audio path.
 
-1. Install Espressif's ESP32 Arduino core.
-2. Select **AI Thinker ESP32-CAM** as the board.
-3. Set PSRAM to enabled if the selected core exposes that option.
-4. Open `network_camera.ino`.
-5. Replace `YOUR_WIFI_NAME` and `YOUR_WIFI_PASSWORD` with the 2.4 GHz Wi-Fi credentials used by the XiaoZhi board.
-6. Upload using an appropriate USB-to-TTL adapter and the board's required boot mode.
+## Wi-Fi setup (no source-code editing required)
+
+1. Flash the separate camera firmware to the AI Thinker ESP32-CAM.
+2. On first boot, connect a phone to the camera's setup Wi-Fi:
+   - Network: `XiaoZhiCam-Setup`
+   - Password: `camsetup123`
+3. Open `http://192.168.4.1` in the phone browser.
+4. Enter the **2.4 GHz Wi-Fi** name and password used by the main XiaoZhi board.
+5. Save. The camera restarts and joins that network.
+
+If saved Wi-Fi credentials stop working, the camera returns to setup mode. Credentials are stored locally in ESP32 NVS Preferences; they are not embedded in the public source or firmware.
 
 ## Endpoints
 
-- `GET /health`: reports whether the node is online.
+Once connected to the same local Wi-Fi network as XiaoZhi:
+
+- `GET /health`: reports camera-node status.
 - `GET /capture`: returns one 320x240 JPEG frame.
 
-After boot, the Serial Monitor at 115200 baud prints the assigned IP. Open `http://CAMERA_IP/health` from a device on the same LAN to check it.
+The camera IP is printed at 115200 baud on serial during startup. The main XiaoZhi camera URL should be set to:
 
-## Notes
+`http://CAMERA_IP/capture`
 
-- The endpoint is intended for a trusted local Wi-Fi network only. Do not expose it to the public internet or configure router port forwarding.
-- Power the ESP32-CAM from a stable 5 V supply capable of handling its current peaks.
-- This node firmware is separate from XiaoZhi's main firmware. It does not alter the main board's audio configuration.
+Replace `CAMERA_IP` with the IP printed by the camera.
+
+## Build
+
+A dedicated GitHub Actions workflow builds this sketch for **AI Thinker ESP32-CAM, 4 MB flash, PSRAM enabled, DIO, 40 MHz**. It produces an independent camera application binary. The build artifact is separate from the main XiaoZhi firmware.
+
+## Hardware and network notes
+
+- Use an AI Thinker ESP32-CAM board with OV2640 and working PSRAM.
+- Power the camera board from a stable 5 V supply suitable for its current peaks.
+- The camera endpoint is intended for a trusted local network only. Do not expose it to the public internet or configure router port forwarding.
+- This firmware provides image capture and HTTP delivery only; vision interpretation is performed by the main XiaoZhi/vision service.
