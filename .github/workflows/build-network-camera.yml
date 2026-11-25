@@ -53,26 +53,26 @@ jobs:
           test -s "$PARTITIONS"
 
           BOOT_APP0="$(find "$HOME/.arduino15/packages/esp32" -type f -name boot_app0.bin -print -quit)"
-          ESPTOOL="$(find "$HOME/.arduino15/packages/esp32/tools/esptool_py" -type f \\( -name esptool.py -o -name esptool \\) -print -quit)"
+          ESPTOOL="$(find "$HOME/.arduino15/packages/esp32/tools/esptool_py" -type f \( -name esptool.py -o -name esptool \) -print -quit)"
           test -n "$BOOT_APP0" && test -s "$BOOT_APP0"
           test -n "$ESPTOOL" && test -s "$ESPTOOL"
 
           if [[ "$ESPTOOL" == *.py ]]; then
-            python "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \\
-              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \\
+            python "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \
+              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \
               0x1000 "$BOOTLOADER" 0x8000 "$PARTITIONS" 0xe000 "$BOOT_APP0" 0x10000 "$APP"
           else
-            "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \\
-              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \\
+            "$ESPTOOL" --chip esp32 merge_bin --flash_mode dio --flash_freq 40m --flash_size 4MB \
+              -o "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin" \
               0x1000 "$BOOTLOADER" 0x8000 "$PARTITIONS" 0xe000 "$BOOT_APP0" 0x10000 "$APP"
           fi
           test -s "$RUNNER_TEMP/camera-build/xiaozhi-esp32cam-merged.bin"
-          printf '%s\n' \\
-            'Board: AI Thinker ESP32-CAM' \\
-            'Target: ESP32, 4 MB flash, PSRAM enabled, DIO, 40 MHz' \\
-            'File: xiaozhi-esp32cam-merged.bin' \\
-            'Flash address: 0x00000000 (merged image)' \\
-            'This is a separate camera-node firmware, not the main XiaoZhi ESP32 firmware.' \\
+          printf '%s\n' \
+            'Board: AI Thinker ESP32-CAM' \
+            'Target: ESP32, 4 MB flash, PSRAM enabled, DIO, 40 MHz' \
+            'File: xiaozhi-esp32cam-merged.bin' \
+            'Flash address: 0x00000000 (merged image)' \
+            'This is a separate camera-node firmware, not the main XiaoZhi ESP32 firmware.' \
             > "$RUNNER_TEMP/camera-build/FLASH-INFO.txt"
 
       - name: Upload camera firmware artifact
