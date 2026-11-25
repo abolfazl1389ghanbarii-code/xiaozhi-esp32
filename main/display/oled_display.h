@@ -23,7 +23,8 @@ private:
     lv_obj_t* chat_message_label_ = nullptr;
     lv_obj_t* eye_left_ = nullptr;
     lv_obj_t* eye_right_ = nullptr;
-    lv_obj_t* heart_parts_[6] = {};
+    lv_obj_t* heart_left_ = nullptr;
+    lv_obj_t* heart_right_ = nullptr;
     lv_obj_t* eyebrow_left_ = nullptr;
     lv_obj_t* eyebrow_right_ = nullptr;
     bool heart_mode_ = false;
