@@ -31,6 +31,8 @@ Replace `CAMERA_IP` with the IP printed by the camera.
 
 ## Build
 
+The dedicated camera workflow is also installed on the integration branch so pull-request checks compile this separate target.
+
 A dedicated GitHub Actions workflow builds this sketch for **AI Thinker ESP32-CAM, 4 MB flash, PSRAM enabled, DIO, 40 MHz**. It produces an independent camera application binary. The build artifact is separate from the main XiaoZhi firmware.
 
 ## Hardware and network notes
