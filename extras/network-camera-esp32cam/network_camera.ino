@@ -107,10 +107,8 @@ static void startSetupPortal() {
     server.on("/save", HTTP_POST, handleSave);
     server.begin();
 
-    Serial.printf("[%s] Wi-Fi setup AP: %s
-", kTag, kSetupSsid);
-    Serial.printf("[%s] Setup password: %s
-", kTag, kSetupPassword);
+    Serial.printf("[%s] Wi-Fi setup AP: %s\n", kTag, kSetupSsid);
+    Serial.printf("[%s] Setup password: %s\n", kTag, kSetupPassword);
     Serial.println("[XiaoZhiCam] Open http://192.168.4.1 to configure Wi-Fi.");
 }
 
@@ -120,7 +118,7 @@ static bool connectSavedWiFi() {
     String password = preferences.getString("password", "");
     preferences.end();
 
-    if (ssid.isEmpty()) return false;
+    if (ssid.length() == 0) return false;
 
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
@@ -175,8 +173,7 @@ static void handleCapture() {
         delay(0);
     }
 
-    Serial.printf("[%s] JPEG %u bytes, sent %u bytes
-",
+    Serial.printf("[%s] JPEG %u bytes, sent %u bytes\n",
                   kTag, static_cast<unsigned>(frame->len), static_cast<unsigned>(sent));
     esp_camera_fb_return(frame);
 }
@@ -192,8 +189,7 @@ void setup() {
 
     esp_err_t err = esp_camera_init(&camera_config);
     if (err != ESP_OK) {
-        Serial.printf("[XiaoZhiCam] Camera init failed: 0x%x
-", err);
+        Serial.printf("[XiaoZhiCam] Camera init failed: 0x%x\n", err);
         while (true) delay(1000);
     }
 
@@ -207,12 +203,9 @@ void setup() {
     server.on("/capture", HTTP_GET, handleCapture);
     server.begin();
 
-    Serial.printf("[%s] Ready. Camera IP: %s
-", kTag, WiFi.localIP().toString().c_str());
-    Serial.printf("[%s] Health: http://%s/health
-", kTag, WiFi.localIP().toString().c_str());
-    Serial.printf("[%s] JPEG: http://%s/capture
-", kTag, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] Ready. Camera IP: %s\n", kTag, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] Health: http://%s/health\n", kTag, WiFi.localIP().toString().c_str());
+    Serial.printf("[%s] JPEG: http://%s/capture\n", kTag, WiFi.localIP().toString().c_str());
 }
 
 void loop() {
