@@ -110,8 +110,8 @@ public:
         // configuration and runtime path are intentionally left unchanged.
         InitializeOledDisplay();
 
-        // Original ESP32 has no supported on-device wake word in this no-PSRAM build.
-        // BOOT button (GPIO0) starts/stops chat.
+        // WakeNet10s is selected by the no-PSRAM ESP32 build configuration.
+        // BOOT (GPIO0) remains available as a manual start/stop fallback.
         boot_button_.OnClick([]() {
             Application::GetInstance().ToggleChatState();
         });
