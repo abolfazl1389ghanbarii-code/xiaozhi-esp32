@@ -37,3 +37,7 @@ The separate AI-Thinker ESP32-CAM firmware is built from `extras/network-camera-
 Both `bread-compact-esp32` OLED variants are included in the integration build validation:
 - `bread-compact-esp32` (SSD1306 128x64)
 - `bread-compact-esp32-128x32` (SSD1306 128x32)
+
+## WakeNet dependency
+
+The experimental classic ESP32 WakeNet10s build uses ESP-SR `~2.6.1` (resolves to 2.6.2), which provides the `wn10s_hilexin` Kconfig model required by this no-PSRAM target.
