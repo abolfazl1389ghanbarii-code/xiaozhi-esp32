@@ -1094,9 +1094,14 @@ class BuildOptionTests(unittest.TestCase):
 
     def test_board_wake_word_support_obeys_psram_dependency(self):
         self.assertTrue(build._board_supports_wake_word("esp32c3", []))
-        self.assertTrue(build._board_supports_wake_word("esp32", []))
+        self.assertFalse(build._board_supports_wake_word("esp32", []))
         self.assertTrue(
             build._board_supports_wake_word("esp32", ["CONFIG_SPIRAM=y"])
+        )
+        self.assertTrue(
+            build._board_supports_wake_word(
+                "esp32", [], "bread-compact-esp32"
+            )
         )
         self.assertFalse(
             build._board_supports_wake_word("esp32s3", ["CONFIG_SPIRAM=n"])
