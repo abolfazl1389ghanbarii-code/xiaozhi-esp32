@@ -151,6 +151,7 @@ private:
     bool has_server_time_ = false;
     bool startup_completed_ = false;
     bool pending_startup_wake_word_hint_ = false;
+    bool pending_toggle_chat_ = false;  // BOOT pressed before protocol activation completed
     bool aborted_ = false;
     bool assets_version_checked_ = false;
     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
