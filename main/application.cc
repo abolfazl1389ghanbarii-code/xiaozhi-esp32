@@ -820,7 +820,8 @@ void Application::HandleToggleChatEvent() {
 
     if (state == kDeviceStateStarting || state == kDeviceStateActivating) {
         // The network/protocol activation task runs asynchronously. Preserve a
-        // physical BOOT request until protocol_->Start() has been reached.
+        // physical BOOT request until protocol_->Start() has been reached;
+        // do not force the state machine to idle before protocol_ exists.
         pending_toggle_chat_ = true;
         ESP_LOGI(TAG, "BOOT request queued while device is activating (state=%d)",
                  static_cast<int>(state));
