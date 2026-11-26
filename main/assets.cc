@@ -117,6 +117,8 @@ bool Assets::LoadSrmodelsFromIndex(Assets* assets, cJSON* root) {
             }
             assets->models_list_ = srmodel_load(static_cast<uint8_t*>(ptr));
             if (assets->models_list_ != nullptr) {
+                ESP_LOGI(TAG, "Loaded speech model bundle from assets (%d models)",
+                         assets->models_list_->num);
                 auto& app = Application::GetInstance();
                 app.GetAudioService().SetModelsList(assets->models_list_);
                 if (need_delete_root) {
@@ -124,10 +126,10 @@ bool Assets::LoadSrmodelsFromIndex(Assets* assets, cJSON* root) {
                 }
                 return true;
             } else {
-                ESP_LOGE(TAG, "Failed to load srmodels.bin");
+                ESP_LOGE(TAG, "Failed to load srmodels.bin from the assets partition");
             }
         } else {
-            ESP_LOGE(TAG, "The srmodels file %s is not found", srmodels_file.c_str());
+            ESP_LOGE(TAG, "The speech model asset %s is missing from the assets partition", srmodels_file.c_str());
         }
     }
 
