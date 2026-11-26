@@ -350,6 +350,14 @@ void Application::HandleActivationDoneEvent() {
     SystemInfo::PrintHeapStats();
     SetDeviceState(kDeviceStateIdle);
 
+    // A BOOT press during startup/activation is retained and replayed only after
+    // InitializeProtocol() has completed, instead of forcing an early idle state.
+    if (pending_toggle_chat_) {
+        pending_toggle_chat_ = false;
+        ESP_LOGI(TAG, "Executing BOOT request queued during activation");
+        xEventGroupSetBits(event_group_, MAIN_EVENT_TOGGLE_CHAT);
+    }
+
     has_server_time_ = ota_->HasServerTime();
 
     // Protocol start may have already raised MAIN_EVENT_ERROR. Do not replace
@@ -810,8 +818,12 @@ void Application::HandleToggleChatEvent() {
         state = kDeviceStateIdle;
     }
 
-    if (state == kDeviceStateActivating) {
-        SetDeviceState(kDeviceStateIdle);
+    if (state == kDeviceStateStarting || state == kDeviceStateActivating) {
+        // The network/protocol activation task runs asynchronously. Preserve a
+        // physical BOOT request until protocol_->Start() has been reached.
+        pending_toggle_chat_ = true;
+        ESP_LOGI(TAG, "BOOT request queued while device is activating (state=%d)",
+                 static_cast<int>(state));
         return;
     } else if (state == kDeviceStateWifiConfiguring) {
         audio_service_.EnableAudioTesting(true);
