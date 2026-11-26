@@ -297,16 +297,17 @@ def _print_wake_word_list(wake_words: list[dict[str, object]]) -> None:
 def _board_supports_wake_word(
     target: str,
     sdkconfig_append: list[str],
+    board_type: str | None = None,
 ) -> bool:
     """Respect board opt-outs as well as target and PSRAM requirements."""
     if _sdkconfig_assignments(sdkconfig_append).get("CONFIG_WAKE_WORD_DISABLED") == "y":
         return False
     if target in _LITE_WAKE_WORD_TARGETS:
         return True
-    if target == "esp32":
-        # ESP-SR 2.6.x provides WakeNet10s for classic ESP32 without PSRAM.
+    if target == "esp32" and board_type == "bread-compact-esp32":
+        # This specific no-PSRAM board uses the experimental WakeNet10s path.
         return True
-    if target not in _AFE_WAKE_WORD_TARGETS:
+    if target not in _AFE_WAKE_WORD_TARGETS | {"esp32"}:
         return False
 
     defaults: list[str] = []
@@ -995,6 +996,7 @@ def _collect_variants(
         variant["wake_word_supported"] = _board_supports_wake_word(
             variant["target"],
             sdkconfig_append,
+            variant["board"],
         )
         variant["build_options"] = _build_option_definitions(
             variant["board"],
@@ -1619,7 +1621,7 @@ def build_board(
         validation_symbols.append(
             ([option.split("=", 1)[0]], "--language")
         )
-        wake_word_supported = _board_supports_wake_word(target, sdkconfig_append)
+        wake_word_supported = _board_supports_wake_word(target, sdkconfig_append, board_type)
         defaults_for_psram: list[str] = []
         for defaults_path in (Path("sdkconfig.defaults"), Path(f"sdkconfig.defaults.{target}")):
             if defaults_path.exists():
