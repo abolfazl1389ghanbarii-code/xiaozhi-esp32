@@ -1516,7 +1516,9 @@ class LanguageBuildTests(unittest.TestCase):
                         models = [item for item in fragment if item.startswith("CONFIG_SR_WN_")]
                         if variant["wake_word_supported"]:
                             chinese = language in {"zh-CN", "zh-TW"}
-                            if target in {"esp32c3", "esp32c5", "esp32c6"}:
+                            if variant["board"] == "bread-compact-esp32":
+                                model = "WN10S_HILEXIN"
+                            elif target in {"esp32c3", "esp32c5", "esp32c6"}:
                                 model = "WN9S_NIHAOXIAOZHI" if chinese else "WN9S_HIESP"
                             else:
                                 model = "WN9_NIHAOXIAOZHI_TTS" if chinese else "WN9_HIESP"
@@ -1581,13 +1583,22 @@ class LanguageBuildTests(unittest.TestCase):
                     if expected is None:
                         self.assertIn("CONFIG_WAKE_WORD_DISABLED=y", fragment)
 
+    def test_bread_compact_esp32_uses_experimental_wakenet10s(self):
+        with self.mock_idf() as (_, configure, _):
+            build.build_board(
+                "bread-compact-esp32", name_filter="bread-compact-esp32",
+                wake_word="hiesp", idf_version=(6, 1, 0),
+            )
+            fragment = configure.call_args.args[1]
+            self.assertIn("CONFIG_SR_WN_WN10S_HILEXIN=y", fragment)
+            self.assertNotIn("CONFIG_SR_WN_WN9_HIESP=y", fragment)
+
     def test_unavailable_wake_word_is_rejected_before_sdk_mutations(self):
         with self.mock_idf() as (prepare, configure, _):
             for board, name in (
                 ("magiclick/c3", "magiclick-c3"),
                 ("guition/jc4827w543", "guition-jc4827w543"),
                 ("m5stack/atoms3-echo-base", "atoms3-echo-base"),
-                ("bread-compact-esp32", "bread-compact-esp32"),
             ):
                 with self.subTest(board=board):
                     with self.assertRaisesRegex(ValueError, "disabled or unsupported"):
