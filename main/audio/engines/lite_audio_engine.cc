@@ -28,7 +28,8 @@ bool LiteAudioEngine::Initialize(AudioCodec* codec, int frame_duration_ms, srmod
         }
     }
 
-    ESP_LOGI(TAG, "Initialized, WakeNet: %s", wake_word_ ? "yes" : "no");
+    ESP_LOGI(TAG, "Initialized, model bundle: %s, WakeNet: %s",
+             models_list_ != nullptr ? "loaded" : "missing", wake_word_ ? "yes" : "no");
     return true;
 }
 
