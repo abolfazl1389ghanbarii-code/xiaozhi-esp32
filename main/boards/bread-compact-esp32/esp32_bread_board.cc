@@ -112,7 +112,10 @@ public:
 
         // WakeNet10s is selected by the no-PSRAM ESP32 build configuration.
         // BOOT (GPIO0) remains available as a manual start/stop fallback.
-        boot_button_.OnClick([]() {
+        // Handle the physical press immediately. Waiting for a single-click event
+        // can lose an early press while OTA/protocol activation is still in progress.
+        boot_button_.OnPressDown([]() {
+            ESP_LOGI(TAG, "BOOT button pressed");
             Application::GetInstance().ToggleChatState();
         });
     }
