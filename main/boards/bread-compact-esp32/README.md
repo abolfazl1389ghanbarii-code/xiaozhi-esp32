@@ -31,3 +31,9 @@ The `bread-compact-esp32` target in the mobile-robot integration branch keeps th
 For the classic ESP32-WROOM-32 without PSRAM, the integration build selects the experimental ESP-SR WakeNet10s model `wn10s_hilexin` (phrase: **"Hi Lexin"**). This is a technical wake-word test, not the requested Persian phrase "سلام XiaoZhi". Wake-word recognition must be validated on the actual microphone and board.
 
 The separate AI-Thinker ESP32-CAM firmware is built from `extras/network-camera-esp32cam/network_camera.ino`; it is not flashed to the main ESP32.
+
+## CI build coverage
+
+Both `bread-compact-esp32` OLED variants are included in the integration build validation:
+- `bread-compact-esp32` (SSD1306 128x64)
+- `bread-compact-esp32-128x32` (SSD1306 128x32)
